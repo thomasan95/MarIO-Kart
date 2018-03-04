@@ -1,17 +1,20 @@
 import tensorflow as tf
-import argparse
-
-parser = argparse.ArgumentParser(description="hyper parameters for the networks")
-parser.add_argument("-kp", "--keep_prob", type=float, default=0.8, help="amount to keep during dropout")
-args = parser.parse_args()
-
-OUTPUT_SIZE = 5
+import config
+import numpy as np
+# Load Configs
+conf = config.Config()
+'''
+class Sample:
+    IMG_W = 200
+    IMG_H = 66
+    IMG_D = 3
+'''
 
 
 def create_graph():
-    keep_prob = args.keep_prob
+    keep_prob = conf.keep_prob
     # Fill in shape later since we'll downsample and resize
-    inp = tf.placeholder(tf.float32, shape=None)
+    inp = tf.placeholder(tf.float32, shape=[None, conf.img_w, conf.img_h, conf.img_d])
     w1 = tf.get_variable(name='W1', shape=[5, 5, 4, 24], initializer=tf.contrib.layers.xavier_initializer())
     b1 = tf.get_variable(name='b1', shape=[24], initializer=tf.zeros_initializer)
 
@@ -39,8 +42,9 @@ def create_graph():
     w_fc4 = tf.get_variable(name="W_fc4", shape=[50, 10], initializer=tf.contrib.layers.xavier_initializer())
     b_fc4 = tf.get_variable(name="b_fc4", shape=[10], initializer=tf.contrib.layers.xavier_initializer())
 
-    w_fc5 = tf.get_variable(name="W_fc5", shape=[10, OUTPUT_SIZE], initializer=tf.contrib.layers.xavier_initializer())
-    b_fc5 = tf.get_variable(name="b_fc5", shape=[OUTPUT_SIZE], initializer=tf.contrib.layers.xavier_initializer())
+    w_fc5 = tf.get_variable(name="W_fc5", shape=[10, conf.OUTPUT_SIZE],
+                            initializer=tf.contrib.layers.xavier_initializer())
+    b_fc5 = tf.get_variable(name="b_fc5", shape=[conf.OUTPUT_SIZE], initializer=tf.contrib.layers.xavier_initializer())
 
     conv1 = tf.nn.relu(tf.nn.conv2d(inp, w1, strides=[1, 2, 2, 1], padding='valid') + b1)
     conv2 = tf.nn.relu(tf.nn.conv2d(conv1, w2, strides=[1, 2, 2, 1], padding='valid') + b2)
@@ -52,7 +56,7 @@ def create_graph():
     fc1 = tf.nn.relu(tf.matmul(conv5_flattened, w_fc1) + b_fc1)
     fc1 = tf.nn.dropout(fc1, keep_prob=keep_prob)
 
-    fc2 = tf.nn.relu(tf.matmul(fc1, w_fc2) + b_fc1)
+    fc2 = tf.nn.relu(tf.matmul(fc1, w_fc2) + b_fc2)
     fc2 = tf.nn.dropout(fc2, keep_prob=keep_prob)
 
     fc3 = tf.nn.relu(tf.matmul(fc2, w_fc3) + b_fc3)
@@ -64,6 +68,44 @@ def create_graph():
     fc5 = tf.nn.relu(tf.matmul(fc4, w_fc5) + b_fc5)
 
     return inp, fc5
+
+
+def train_graph(inp, model_out, sess):
+    keep_training = True
+    # For storing what action to take output by the network
+    max_action = tf.placeholder(tf.float32, [None, conf.OUTPUT_SIZE])
+    # Placeholder for storing optimal action (labels)
+    optimal_action = tf.placeholder(tf.float32, [None])
+    # Get the best action
+    action = tf.reduce_mean(tf.multiply(model_out, max_action), axis=1)
+    # MSE loss
+    cost = tf.reduce_mean(tf.square(action - optimal_action))
+    # Initialize global step variable for annealing learning rate
+    global_step = tf.Variable(0, trainable=False)
+    lr = tf.train.exponential_decay(conf.learning_rate,
+                                    global_step,
+                                    conf.decay_steps,
+                                    conf.anneal_factor,
+                                    staircase=True)
+    optimizer = tf.train.AdamOptimizer(lr).minimize(cost, global_step=global_step)
+    input_tensor = np.zeros((conf.img_h, conf.img_w, conf.img_d))
+    saver = tf.train.Saver()
+    sess.run(tf.global_variables_initializer())
+    while keep_training:
+        feed_dict = {inp: input_tensor}
+        output = model_out.eval(feed_dict=feed_dict)
+        break
+        # Do something
+
+
+def main():
+    sess = tf.InteractiveSession()
+    x_placeholder, model = create_graph()
+    train_graph(x_placeholder, model, sess)
+
+
+if __name__ == "__main__":
+    main()
 
 
 
