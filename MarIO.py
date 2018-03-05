@@ -1,8 +1,13 @@
 import tensorflow as tf
 import config
 import numpy as np
+import argparse
 # Load Configs
 conf = config.Config()
+parser = argparse.ArgumentParser(description="specify task of the network")
+parser.add_argument("-t", "-task", type=str, default='train', help="will implement other parameters")
+args = parser.parse_args()
+
 '''
 class Sample:
     IMG_W = 200
@@ -12,10 +17,28 @@ class Sample:
 
 
 def create_graph():
+    """
+    Instantiate the graph. We create a placeholder to feed into the network which is then
+    created to use through tf.Session()
+    Structure:
+        Conv1 - Kernel (5,5), Stride (2,2) out-depth 24
+        Conv2 - Kernel (5,5), Stride (2,2) out-depth 36
+        Conv3 - Kernel (5,5), Stride (2,2) out-depth 48
+        Conv4 - Kernel (3,3), Stride (1,1) out-depth 64
+        Conv5 - Kernel (3,3), Stride (1,1) out-depth 64
+        Fc1 - [-1, 1164]
+        Fc2 - [1164, 100]
+        Fc3 = [100, 50]
+        Fc4 = [50, 10]
+        Fc5 (output) = [10, conf.OUTPUT_SIZE]
+    The network output is then returned
+    :return: input placeholder for network and the output of the network
+    :rtype: tensorflow Tensor, tensorflow Tensor
+    """
     keep_prob = conf.keep_prob
     # Fill in shape later since we'll downsample and resize
     inp = tf.placeholder(tf.float32, shape=[None, conf.img_w, conf.img_h, conf.img_d])
-    w1 = tf.get_variable(name='W1', shape=[5, 5, 4, 24], initializer=tf.contrib.layers.xavier_initializer())
+    w1 = tf.get_variable(name='W1', shape=[5, 5, 3, 24], initializer=tf.contrib.layers.xavier_initializer())
     b1 = tf.get_variable(name='b1', shape=[24], initializer=tf.zeros_initializer)
 
     w2 = tf.get_variable(name='W4', shape=[5, 5, 24, 36], initializer=tf.contrib.layers.xavier_initializer())
@@ -101,7 +124,8 @@ def train_graph(inp, model_out, sess):
 def main():
     sess = tf.InteractiveSession()
     x_placeholder, model = create_graph()
-    train_graph(x_placeholder, model, sess)
+    if args.task == 'train':
+        train_graph(x_placeholder, model, sess)
 
 
 if __name__ == "__main__":
