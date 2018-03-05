@@ -114,9 +114,13 @@ def train_graph(inp, model_out, sess):
     input_tensor = np.zeros((conf.img_h, conf.img_w, conf.img_d))
     saver = tf.train.Saver()
     sess.run(tf.global_variables_initializer())
+    train_iter = 0
     while keep_training:
         feed_dict = {inp: input_tensor}
         output = model_out.eval(feed_dict=feed_dict)
+        t += 1
+        if t % conf.save_freq == 0:
+            saver.save(sess, conf.save_dir + conf.save_name, global_step=train_iter)
         break
         # Do something
 
