@@ -12,3 +12,6 @@ class Config(object):
     img_h = 66
     img_d = 3
     save_freq = 1000
+    sum_dir = './summaries/'
+    is_training = True
+    
