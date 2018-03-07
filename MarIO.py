@@ -2,18 +2,14 @@ import tensorflow as tf
 import config
 import numpy as np
 import argparse
+import random
+import utilities as utils
+print("Using TensorFlow version: " + str(tf.__version__))
 # Load Configs
 conf = config.Config()
 parser = argparse.ArgumentParser(description="specify task of the network")
 parser.add_argument("-t", "-task", type=str, default='train', help="will implement other parameters")
 args = parser.parse_args()
-
-'''
-class Sample:
-    IMG_W = 200
-    IMG_H = 66
-    IMG_D = 3
-'''
 
 
 def create_graph():
@@ -99,10 +95,12 @@ def create_graph():
             fc3 = tf.nn.dropout(fc3, keep_prob=keep_prob)
             fc4 = tf.nn.relu(tf.matmul(fc3, w_fc4) + b_fc4)
             fc4 = tf.nn.dropout(fc4, keep_prob=keep_prob)
+
         with tf.name_scope("Predictions"):
-            out = tf.nn.relu(tf.matmul(fc4, w_fc5) + b_fc5, name="out")
-            action = tf.reduce_sum(tf.multiply(out, max_action), axis=1)
-            tf.summary.histogram('predictions', action)
+            out = tf.nn.softsign(tf.matmul(fc4, w_fc5) + b_fc5, name="out")
+            action = tf.reduce_sum(tf.multiply(out, max_action), axis=1, name="action")
+            tf.summary.histogram('outputs', out)
+            tf.summary.histogram('actions', action)
         with tf.name_scope("Loss"):
             loss = tf.reduce_mean(tf.square(action - optimal_action), name="sse_loss")
             tf.summary.scalar('loss', loss)
@@ -117,20 +115,31 @@ def create_graph():
                                             staircase=True)
             optimizer = tf.train.AdamOptimizer(lr).minimize(loss, global_step=global_step, name="optim")
     print("Done creating graph")
-    return graph, inp, max_action, optimal_action, out, action, loss, optimizer
+    graph_nodes = {"inp": inp,
+                   "max_action": max_action,
+                   "optimal_action": optimal_action,
+                   "out": out,
+                   "action": action,
+                   "loss": loss,
+                   "optimizer": optimizer}
+
+    return graph, graph_nodes  # inp, max_action, optimal_action, out, action, loss, optimizer
 
 
-def train_graph(graph, inp, max_action, optimal_action, out, action, loss, optimizer):
+def supervised_train(graph, nodes):
+    print("inside supervised")
+    max_epochs = conf.epochs
+    batch_size = conf.batch_size
+    with tf.Session(graph=graph) as sess:
+        for epoch in range(1, max_epochs + 1):
+            input_tensor = utils.get_batches()
+
+
+def deep_q_train(graph, nodes):
     """
     Main training loop to train the graph
     :param graph:
-    :param inp:
-    :param max_action:
-    :param optimal_action:
-    :param out:
-    :param action:
-    :param loss:
-    :param optimizer:
+    :param nodes:
     :return:
     """
     keep_training = True
@@ -141,9 +150,19 @@ def train_graph(graph, inp, max_action, optimal_action, out, action, loss, optim
         sess.run(tf.global_variables_initializer())
         train_writer = tf.summary.FileWriter(conf.sum_dir + './train/', sess.graph)
         train_iter = 1
+        epsilon = conf.initial_epsilon
         while keep_training:
-            out_t = sess.run(out, feed_dict={inp: inp_t})
-            print(type(out_t))
+            out_t = sess.run(nodes["out"], feed_dict={nodes["inp"]: inp_t})
+            action_input = np.zeros([conf.OUTPUT_SIZE])
+            # Perform random explore action or else grab maximum output
+            if random.random() <= epsilon:
+                act_indx = random.randrange(conf.OUTPUT_SIZE)
+            else:
+                act_indx = np.argmax(out_t)
+            action_input[act_indx] = 1
+
+            # TODO: write rest of reinforcement learning pipeline
+
             train_iter += 1
             if train_iter % conf.save_freq == 0:
                 saver.save(sess, conf.save_dir + conf.save_name, global_step=train_iter)
@@ -152,10 +171,13 @@ def train_graph(graph, inp, max_action, optimal_action, out, action, loss, optim
 
 
 def main():
-    graph, inp, max_action, optimal_action, out, action, loss, optimizer = create_graph()
-
+    # graph, inp, max_action, optimal_action, out, action, loss, optimizer = create_graph()
+    graph, nodes = create_graph()
     if conf.is_training:
-        train_graph(graph, inp, max_action, optimal_action, out, action, loss, optimizer)
+        if conf.training_phase == 1:
+            supervised_train(graph, nodes)
+        if conf.training_phase == 2:
+            deep_q_train(graph, nodes)
 
 
 if __name__ == "__main__":
