@@ -5,6 +5,7 @@ import argparse
 import random
 import utilities as utils
 import gym
+from collections import deque
 print("Using TensorFlow version: " + str(tf.__version__))
 # Load Configs
 conf = config.Config()
@@ -41,7 +42,8 @@ def create_graph():
         # with actor.as_graph_def():
         with tf.variable_scope("actor_input"):
             state_inp = tf.placeholder(tf.float32, shape=conf.inp_shape, name="actor_state_input")
-            actor_action = tf.placeholder(tf.float32, shape=env.action_space.n, name="actor_action_ph")
+            actor_action = tf.placeholder(tf.float32, shape=[None, conf.OUTPUT_SIZE], name="actor_action_ph")
+            yj = tf.placeholder(tf.float32, shape=[None], name="yj")
         with tf.variable_scope("actor_kernels_weights"):
             a_w1 = tf.get_variable(name="act_W1", shape=[5, 5, 3, 24],
                                    initializer=tf.contrib.layers.xavier_initializer())
@@ -105,15 +107,19 @@ def create_graph():
             fc4 = tf.nn.dropout(fc4, keep_prob=conf.keep_prob)
         with tf.name_scope("actor_predictions"):
             out = tf.nn.softsign(tf.matmul(fc4, a_w_fc5) + a_b_fc5, name="actor_output")
+            action = tf.reduce_sum(tf.multiply(out, actor_action), axis=1)
             tf.summary.histogram('outputs', out)
+            tf.summary.scalar('action', action)
         with tf.name_scope("actor_loss"):
-            loss = tf.reduce_mean(tf.square(out - actor_action), name="sse_loss")
+            loss = tf.reduce_mean(tf.square(action - yj), name="sse_loss")
             tf.summary.scalar("actor_loss", loss)
         with tf.name_scope("actor_optimizer"):
             optim = tf.train.AdamOptimizer().minimize(loss)
     actor_nodes = {"state_inp": state_inp,
                    "action_inp": actor_action,
+                   "yj": yj,
                    "out": out,
+                   "action": action,
                    "loss": loss,
                    "optim": optim}
     return state_inp, actor_nodes
@@ -131,41 +137,80 @@ def supervised_train(nodes):
 def deep_q_train(nodes):
     """
     Main training loop to train the graph
-    :param graph:
-    :param nodes:
+    :param nodes: Nodes for the graph so that the Tensorflow network can run
+    :type nodes: dict{str: tf.Tensors}
     :return:
     """
-    keep_training = True
+
     with tf.Session() as sess:
-        input_tensor = np.ones((conf.img_h, conf.img_w, conf.img_d))
-        inp_t = np.stack((input_tensor, input_tensor, input_tensor, input_tensor), axis=0)
         saver = tf.train.Saver()
+        # Initialize all variables such as Q inside network
         sess.run(tf.global_variables_initializer())
         train_writer = tf.summary.FileWriter(conf.sum_dir + './train/', sess.graph)
-        train_iter = 1
+        # Initialize memory to some capacity
+        memory = deque(maxlen=conf.replay_memory)
         epsilon = conf.initial_epsilon
-        while keep_training:
-            out_t = sess.run(nodes["out"], feed_dict={nodes["inp"]: inp_t})
-            action_input = np.zeros([conf.OUTPUT_SIZE])
-            # Perform random explore action or else grab maximum output
-            if random.random() <= epsilon:
-                act_indx = random.randrange(conf.OUTPUT_SIZE)
-            else:
-                act_indx = np.argmax(out_t)
-            action_input[act_indx] = 1
+        for episode in range(1, conf.max_episodes):
+            still_in_episode = True
+            # Will replace with samples from the initial game screen
+            input_tensor = np.ones((conf.img_h, conf.img_w, conf.img_d))
+            # Want to send in 4 screens at a time to process, so stack along depth of image
+            state = np.stack((input_tensor, input_tensor, input_tensor, input_tensor), axis=2)
+            time_step = 0
+            while still_in_episode:
+                # Grab actions from first state
+                action_input = np.zeros([conf.OUTPUT_SIZE])
+                out_t = sess.run(nodes["out"], feed_dict={nodes["inp"]: state})[0]
+                # Perform random explore action or else grab maximum output
+                if random.random() <= epsilon:
+                    act_indx = random.randrange(conf.OUTPUT_SIZE)
+                else:
+                    act_indx = np.argmax(out_t)
+                action_input[act_indx] = 1
+                if epsilon > conf.final_epsilon:
+                    epsilon *= conf.epsilon_decay
+                # Observe next reward from action
+                obs, reward, end_episode, info = env.step(action_input)
+                # Finish rest of the pipeline for this time step, but proceed to the next episode after
+                if end_episode:
+                    still_in_episode = False
+                env.render()
+                ''' Perform some preprocessing on obs? Not entirely sure what object is spit out from obs '''
+                ''' Maybe need to downsample observation again, like they do in the TensorKart utils '''
+                new_state = np.append(obs, state[:, :, 0:3*(conf.num_frames - 1)], axis=2)
+                # Add to memory
+                memory.append((state, action_input, reward, new_state))
 
-            # TODO: write rest of reinforcement learning pipeline
+                if time_step > conf.start_memory_sample:
+                    batch = random.sample(memory, conf.batch_size)
+                    mem_state = [mem[0] for mem in batch]
+                    mem_action = [mem[1] for mem in batch]
+                    mem_reward = [mem[2] for mem in batch]
+                    mem_next_state = [mem[3] for mem in batch]
 
-            train_iter += 1
-            if train_iter % conf.save_freq == 0:
-                saver.save(sess, conf.save_dir + conf.save_name, global_step=train_iter)
-            break
-        train_writer.close()
+                    yj = []
+                    mem_out = sess.run(nodes["out"], feed_dict={nodes["state_inp"]: mem_next_state})
+                    for i in range(0, len(batch)):
+                        yj.append(mem_reward[i] + conf.learning_rate*np.max(mem_out[i]))
+
+                    # Perform gradient descent on the loss function with respect to the yj and predicted output
+                    _ = sess.run(nodes["optimizer"], feed_dict={nodes["yj"]: yj,
+                                                                nodes["action_inp"]: mem_action,
+                                                                nodes["state_inp"]: mem_state})
+                state = new_state
+                time_step += 1
+                if time_step % conf.save_freq == 0:
+                    saver.save(sess, conf.save_dir + conf.save_name, global_step=time_step)
+                if time_step % 100 == 0:
+                    print("Episode: %d, Time Step: %d, Reward: %d" % (episode, time_step, reward))
+            train_writer.close()
 
 
 def main():
     # graph, inp, max_action, optimal_action, out, action, loss, optimizer = create_graph()
-    graph, nodes = create_graph()
+    with tf.variable_scope("Actor_Graph"):
+        graph, nodes = create_graph()
+    print(tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope="Actor_Graph"))
     if conf.is_training:
         if conf.training_phase == 1:
             supervised_train(nodes)
