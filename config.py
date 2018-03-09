@@ -13,7 +13,8 @@ class Config(object):
     img_w = 200
     img_h = 66
     img_d = 3
-    inp_shape = (None, img_h, img_w, img_d)
+    num_frames = 4
+    inp_shape = (None, img_h, img_w, img_d*num_frames)
     save_freq = 1000
     sum_dir = './summaries/'
     is_training = True
@@ -22,9 +23,11 @@ class Config(object):
     batch_size = 50
     resume_training = False
     initial_epsilon = 1.0
-    epsilon_decay = 0.95
+    epsilon_decay = 0.975
     final_epsilon = 0.05
     gamma = 0.95
     tau = 0.125
     replay_memory = 500000
+    start_memory_sample = 50000
+    max_episodes = 500000
 
