@@ -15,9 +15,7 @@ group = parser.add_mutually_exclusive_group(required=True)
 group.add_argument("-s", "--supervised", action='store_true', help="supervised training")
 group.add_argument("-dqn", "--reinforcement", action='store_true', help="reinforcement learning")
 parser.add_argument("-r", "--resume", action="store_true", help="resume training. Specify file path in config.py")
-
 args = parser.parse_args()
-env = gym.make('Acrobot-v1')
 
 
 def create_graph():
@@ -46,7 +44,7 @@ def create_graph():
         # with actor.as_graph_def():
         with tf.variable_scope("actor_input"):
             state_inp = tf.placeholder(tf.float32, shape=conf.inp_shape, name="actor_state_input")
-            supervised_act = tf.placeholder(tf.float32, shap=[None, conf.OUTPUT_SIZE], name="supervised_action")
+            supervised_act = tf.placeholder(tf.float32, shape=[None, conf.OUTPUT_SIZE], name="supervised_action")
             actor_action = tf.placeholder(tf.float32, shape=[None, conf.OUTPUT_SIZE], name="actor_action_ph")
             yj = tf.placeholder(tf.float32, shape=[None], name="yj")
         with tf.variable_scope("actor_kernels_weights"):
@@ -85,9 +83,9 @@ def create_graph():
                                       initializer=tf.contrib.layers.xavier_initializer())
             a_b_fc4 = tf.get_variable(name="act_b_fc4", shape=[10], initializer=tf.zeros_initializer)
 
-            a_w_fc5 = tf.get_variable(name="act_W_fc5", shape=[10, env.action_space.n],
+            a_w_fc5 = tf.get_variable(name="act_W_fc5", shape=[10, conf.OUTPUT_SIZE],
                                       initializer=tf.contrib.layers.xavier_initializer())
-            a_b_fc5 = tf.get_variable(name="act_b_fc5", shape=[env.action_space.n], initializer=tf.zeros_initializer)
+            a_b_fc5 = tf.get_variable(name="act_b_fc5", shape=[conf.OUTPUT_SIZE], initializer=tf.zeros_initializer)
         with tf.variable_scope("actor_conv_layers"):
             inp_batchnorm = tf.contrib.layers.batch_norm(state_inp, center=True, scale=True, is_training=True)
             conv1 = tf.nn.relu(tf.nn.conv2d(inp_batchnorm, a_w1, strides=[1, 2, 2, 1], padding='VALID') + a_b1)
@@ -139,43 +137,40 @@ def supervised_train(nodes):
     :return: losses during the training cycle
     :rtype: list
     """
-    print("inside supervised")
-    max_epochs = conf.epochs
+    print("\nSupervised Training\n")
     batch_size = conf.batch_size
-    x_data = np.load("data/X.npy")
-    y_data = np.load("data/y.npy")
+    print("Loading Data")
+    x_data = np.load(conf.data_dir + "X.npy")
+    y_data = np.load(conf.data_dir + "y.npy")
     x_train, x_val, y_train, y_val = train_test_split(x_data, y_data, test_size=conf.val_split)
     num_batches = len(x_train)//batch_size
     val_size = len(x_val)//batch_size
-    remaining_batch = len(x_train) % batch_size
     losses, val_losses = [], []
     with tf.Session() as sess:
         saver = tf.train.Saver()
         sess.run(tf.global_variables_initializer())
         train_writer = tf.summary.FileWriter(conf.sum_dir + './train/', sess.graph)
         train_iter = 0
-        for epoch in range(1, max_epochs + 1):
+        for epoch in range(1, conf.epochs + 1):
             train_loss, val_loss = 0, 0
-            for batch_i in range(num_batches + 1):
-                if batch_i == num_batches + 1:
-                    last_batch = True
-                else:
-                    last_batch = False
-                x_input, y_input = utils.get_batches(x_train, y_train, batch_i, batch_size, last_batch, remaining_batch)
+            for batch_i, (x_input, y_input) in enumerate(utils.get_batches(x_train, y_train, conf.batch_size)):
                 loss, _ = sess.run([nodes["s_loss"], nodes["optim_s"]],
                                    feed_dict={nodes["state_inp"]: x_input,
                                               nodes["s_action"]: y_input})
                 train_loss += loss
                 train_iter += 1
+                if train_iter % 10 == 0:
+                    print("Done with %d iterations of training" % train_iter)
                 if train_iter % conf.save_freq == 0:
                     saver.save(sess, conf.save_dir + conf.save_name)
-            losses.append(train_loss/num_batches)
-            for val_i in range(val_size):
-                val_x_inp, val_y_inp = utils.get_batches(x_val, y_val, val_i, batch_size, False, 0)
+            for val_i, val_x_inp, val_y_inp in enumerate(utils.get_batches(x_val, y_val, conf.batch_size)):
                 loss = sess.run(nodes["s_loss"], feed_dict={nodes["state_inp"]: val_x_inp,
                                                             nodes["s_action"]: val_y_inp})
                 val_loss += loss
+            # Append losses to generate plots in the future
+            losses.append(train_loss / num_batches)
             val_losses.append(val_loss/val_size)
+        # Close train writer
         train_writer.close()
         return losses, val_losses
 
@@ -187,6 +182,8 @@ def deep_q_train(nodes):
     :type nodes: dict{str: tf.Tensors}
     :return:
     """
+    print("\nReinforcement Learning\n")
+    env = gym.make('Mario-Kart-Royal-Raceway-v0')
     with tf.Session() as sess:
         saver = tf.train.Saver()
         # Initialize all variables such as Q inside network
@@ -255,11 +252,10 @@ def main():
     # graph, inp, max_action, optimal_action, out, action, loss, optimizer = create_graph()
     with tf.variable_scope("Actor_Graph"):
         graph, nodes = create_graph()
-    print(tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope="Actor_Graph"))
     if conf.is_training:
-        if args.supervised == 1:
+        if args.supervised:
             losses = supervised_train(nodes)
-        if args.reinforcement == 2:
+        elif args.reinforcement:
             deep_q_train(nodes)
 
 
