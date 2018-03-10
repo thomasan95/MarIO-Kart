@@ -251,6 +251,38 @@ def deep_q_train(nodes):
             train_writer.close()
 
 
+def policy_gradient_train(nodes):
+    env = gym.make('Mario-Kart-Royal-Raceway-v0')
+    with tf.Session() as sess:
+        saver = tf.train.Saver()
+        if conf.resume_training:
+            saver.restore(sess, conf.save_dir + conf.save_name)
+        else:
+            sess.run(tf.global_variables_initializer())
+        state = env.reset()
+        states, actions, rewards = [], [], []
+        for episode in range(conf.max_episodes):
+            reward = 0
+            keep_training = True
+            previous_state = np.zeros((conf.img_h, conf.img_w, conf.img_d))
+            while keep_training:
+                state = utils.resize_img(state)
+                # Feed in the difference in states
+                state_inp = state - previous_state
+                previous_state = state
+                out = sess.run(nodes["out"], feed_dict={nodes["state_inp"]: state_inp})
+                out = 1.0 / (1 + tf.exp(-out))
+                states.append(state_inp)
+                actions.append(out)
+                state, r, end_episode, _ = env.step(out)
+                reward += r
+                rewards.append(reward)
+                if end_episode:
+                    keep_training = False
+
+
+
+
 def main():
     # graph, inp, max_action, optimal_action, out, action, loss, optimizer = create_graph()
     with tf.variable_scope("Actor_Graph"):
