@@ -1,40 +1,24 @@
-import numpy as np
-import tensorflow as tf
-from skimage.color import rgb2gray
 from skimage.transform import resize
 import config
-import matplotlib.pyplot as plt
-import matplotlib.image as mpimg
-
-from inputs import get_gamepad
-import threading
-import sys
 conf = config.Config()
 
 
-def get_batches(x_train, y_train, batch_i, last_batch, remaining_batch):
+def get_batches(x_train, y_train, batch_size):
     """
     Grab batches for supervised training
     :param x_train: x training data
     :type x_train: numpy.ndarray
     :param y_train: labels for training data
-    :type y_train: numpy.ndarray
-    :param batch_i: current batch for the data
-    :type batch_i: int
-    :param last_batch: boolean to grab last data or not
-    :type last_batch: bool
-    :param remaining_batch: how much of the data is left over for this batch
-    :type remaining_batch: int
+    :type y_train: numpy.ndarray:
+    :param batch_size:
     :returns: batch_x, batch_y
     """
-    if last_batch:
-        return x_train[-remaining_batch:], y_train[-remaining_batch:]
-    else:
-        start_idx = batch_i * conf.batch_size
-        end_idx = batch_i * conf.batch_size + conf.batch_size
-        batch_x = x_train[start_idx:end_idx]
-        batch_y = y_train[start_idx:end_idx]
-        yield batch_x, batch_y
+    for batch_i in range(len(x_train) // batch_size):
+        start = batch_i * batch_size
+        end = start + batch_size
+        batch_x = x_train[start:end]
+        labels = y_train[start:end]
+        yield batch_x, labels
 
 
 def resize_img(img):
