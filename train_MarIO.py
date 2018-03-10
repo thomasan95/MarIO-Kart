@@ -6,6 +6,7 @@ import random
 import utilities as utils
 import gym
 from collections import deque
+from sklearn.model_selection import train_test_split
 print("Using TensorFlow version: " + str(tf.__version__))
 # Load Configs
 conf = config.Config()
@@ -39,7 +40,6 @@ def create_graph():
     :return: graph, input_placeholder, max_actions placeholder, optimal_action, out, action, loss, optimizer
     :rtype: tf.Graph(), tf.placeholder(), tf.placeholder(), tf.placeholder(), tf.Tensor, tf.Tensor, loss, tf optimizer
     """
-    keep_prob = conf.keep_prob
     # Fill in shape later since we'll downsample and resize
     with tf.variable_scope("actor"):
         # actor = tf.Graph()
@@ -142,27 +142,42 @@ def supervised_train(nodes):
     print("inside supervised")
     max_epochs = conf.epochs
     batch_size = conf.batch_size
-    x_train = np.load("data/X.npy")
-    y_train = np.load("data/y.npy")
+    x_data = np.load("data/X.npy")
+    y_data = np.load("data/y.npy")
+    x_train, x_val, y_train, y_val = train_test_split(x_data, y_data, test_size=conf.val_split)
     num_batches = len(x_train)//batch_size
-    losses = []
+    val_size = len(x_val)//batch_size
+    remaining_batch = len(x_train) % batch_size
+    losses, val_losses = [], []
     with tf.Session() as sess:
         saver = tf.train.Saver()
         sess.run(tf.global_variables_initializer())
         train_writer = tf.summary.FileWriter(conf.sum_dir + './train/', sess.graph)
         train_iter = 0
         for epoch in range(1, max_epochs + 1):
+            train_loss, val_loss = 0, 0
             for batch_i in range(num_batches + 1):
-                x_input, y_input = utils.get_batches(x_train, y_train, batch_i, batch_size)
+                if batch_i == num_batches + 1:
+                    last_batch = True
+                else:
+                    last_batch = False
+                x_input, y_input = utils.get_batches(x_train, y_train, batch_i, batch_size, last_batch, remaining_batch)
                 loss, _ = sess.run([nodes["s_loss"], nodes["optim_s"]],
                                    feed_dict={nodes["state_inp"]: x_input,
                                               nodes["s_action"]: y_input})
-                losses.append(loss)
+                train_loss += loss
                 train_iter += 1
                 if train_iter % conf.save_freq == 0:
                     saver.save(sess, conf.save_dir + conf.save_name)
+            losses.append(train_loss/num_batches)
+            for val_i in range(val_size):
+                val_x_inp, val_y_inp = utils.get_batches(x_val, y_val, val_i, batch_size, False, 0)
+                loss = sess.run(nodes["s_loss"], feed_dict={nodes["state_inp"]: val_x_inp,
+                                                            nodes["s_action"]: val_y_inp})
+                val_loss += loss
+            val_losses.append(val_loss/val_size)
         train_writer.close()
-        return losses
+        return losses, val_losses
 
 
 def deep_q_train(nodes):
@@ -172,7 +187,6 @@ def deep_q_train(nodes):
     :type nodes: dict{str: tf.Tensors}
     :return:
     """
-
     with tf.Session() as sess:
         saver = tf.train.Saver()
         # Initialize all variables such as Q inside network
@@ -244,7 +258,7 @@ def main():
     print(tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope="Actor_Graph"))
     if conf.is_training:
         if args.supervised == 1:
-            supervised_train(nodes)
+            losses = supervised_train(nodes)
         if args.reinforcement == 2:
             deep_q_train(nodes)
 
