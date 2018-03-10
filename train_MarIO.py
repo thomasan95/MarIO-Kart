@@ -18,7 +18,7 @@ parser.add_argument("-r", "--resume", action="store_true", help="resume training
 args = parser.parse_args()
 
 
-def create_graph():
+def create_graph(keep_prob=conf.keep_prob):
     """
     Instantiate the graph. We create a placeholder to feed into the network which is then
     created to use through tf.Session()
@@ -96,13 +96,13 @@ def create_graph():
         with tf.name_scope("actor_dense_Layers"):
             conv5_flattened = tf.contrib.layers.flatten(conv5)
             fc1 = tf.nn.relu(tf.matmul(conv5_flattened, a_w_fc1) + a_b_fc1)
-            fc1 = tf.nn.dropout(fc1, keep_prob=conf.keep_prob)
+            fc1 = tf.nn.dropout(fc1, keep_prob=keep_prob)
             fc2 = tf.nn.relu(tf.matmul(fc1, a_w_fc2) + a_b_fc2)
-            fc2 = tf.nn.dropout(fc2, keep_prob=conf.keep_prob)
+            fc2 = tf.nn.dropout(fc2, keep_prob=keep_prob)
             fc3 = tf.nn.relu(tf.matmul(fc2, a_w_fc3) + a_b_fc3)
-            fc3 = tf.nn.dropout(fc3, keep_prob=conf.keep_prob)
+            fc3 = tf.nn.dropout(fc3, keep_prob=keep_prob)
             fc4 = tf.nn.relu(tf.matmul(fc3, a_w_fc4) + a_b_fc4)
-            fc4 = tf.nn.dropout(fc4, keep_prob=conf.keep_prob)
+            fc4 = tf.nn.dropout(fc4, keep_prob=keep_prob)
         with tf.name_scope("actor_predictions"):
             out = tf.nn.softsign(tf.matmul(fc4, a_w_fc5) + a_b_fc5, name="actor_output")
             supervised_loss = tf.sqrt(tf.reduce_sum(tf.square(out - supervised_act)))
