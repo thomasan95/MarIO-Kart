@@ -271,7 +271,6 @@ def policy_gradient_train(nodes):
                 state_inp = state - previous_state
                 previous_state = state
                 out = sess.run(nodes["out"], feed_dict={nodes["state_inp"]: state_inp})
-                out = 1.0 / (1 + tf.exp(-out))
                 states.append(state_inp)
                 actions.append(out)
                 state, r, end_episode, _ = env.step(out)
