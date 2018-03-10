@@ -160,10 +160,10 @@ def supervised_train(nodes):
                 train_loss += loss
                 train_iter += 1
                 if train_iter % 10 == 0:
-                    print("Done with %d iterations of training" % train_iter)
+                    print("Done with %d iterations of training:\tCurr Loss: %f" % (train_iter, loss))
                 if train_iter % conf.save_freq == 0:
                     saver.save(sess, conf.save_dir + conf.save_name)
-            for val_i, val_x_inp, val_y_inp in enumerate(utils.get_batches(x_val, y_val, conf.batch_size)):
+            for val_i, (val_x_inp, val_y_inp) in enumerate(utils.get_batches(x_val, y_val, conf.batch_size)):
                 loss = sess.run(nodes["s_loss"], feed_dict={nodes["state_inp"]: val_x_inp,
                                                             nodes["s_action"]: val_y_inp})
                 val_loss += loss
