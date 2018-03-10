@@ -4,12 +4,20 @@ class Config(object):
     save_name = 'best_model'
     rom_dir = './ROM/'
     actor_checkpoint = './saves/actor/actor_model.ckpt'
-    critic_checkpoint = './saves/critic/critic_model.ckpt'
     learning_rate = 0.001
     keep_prob = 0.8
     decay_steps = 100000
     anneal_factor = 0.96
     OUTPUT_SIZE = 5
+    '''
+    Screenshot Dimensions
+    '''
+    src_w = 640
+    src_h = 480
+    src_d = 3
+    '''
+    Sample Image Sizes
+    '''
     img_w = 200
     img_h = 66
     img_d = 3
