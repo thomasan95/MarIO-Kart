@@ -7,6 +7,7 @@ import utilities as utils
 import gym
 from collections import deque
 from sklearn.model_selection import train_test_split
+import pickle as pkl
 print("Using TensorFlow version: " + str(tf.__version__))
 # Load Configs
 conf = config.Config()
@@ -170,6 +171,8 @@ def supervised_train(nodes):
             # Append losses to generate plots in the future
             losses.append(train_loss / num_batches)
             val_losses.append(val_loss/val_size)
+            pkl.dump(losses, conf.pickle_dir + 'train_losses.p')
+            pkl.dump(val_losses, conf.pickle_dir + 'valid_loss.p')
         # Close train writer
         train_writer.close()
         return losses, val_losses
@@ -254,7 +257,7 @@ def main():
         graph, nodes = create_graph()
     if conf.is_training:
         if args.supervised:
-            losses = supervised_train(nodes)
+            losses, val_losses = supervised_train(nodes)
         elif args.reinforcement:
             deep_q_train(nodes)
 
