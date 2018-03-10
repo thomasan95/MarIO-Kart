@@ -30,6 +30,7 @@ for race in os.listdir(path):
         row = row.split(',')
         if len(row) >1:
             row[1]=str(-float(row[1]))
+            row[2]=str(-float(row[2]))
         row = ','.join(row)
         times.append(row)
     new_file = '\n'.join(times)
