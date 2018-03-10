@@ -2,7 +2,7 @@ from utilities import resize_img, XboxController
 from train_MarIO import create_graph
 import config
 import numpy as np
-import cprint
+from termcolor import cprint
 import gym
 import tensorflow as tf
 conf = config.Config()
