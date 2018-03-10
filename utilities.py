@@ -1,5 +1,8 @@
 from skimage.transform import resize
 import config
+import math
+from inputs import get_gamepad
+import threading
 conf = config.Config()
 
 
@@ -63,7 +66,6 @@ class XboxController(object):
         self._monitor_thread.daemon = True
         self._monitor_thread.start()
 
-
     def read(self):
         x = self.LeftJoystickX
         y = self.LeftJoystickY
@@ -71,7 +73,6 @@ class XboxController(object):
         b = self.X # b=1, x=2
         rb = self.RightBumper
         return [x, y, a, b, rb]
-
 
     def _monitor_controller(self):
         while True:
