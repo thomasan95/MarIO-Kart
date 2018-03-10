@@ -1,4 +1,7 @@
 class Config(object):
+    """
+    Configuration file for specifying parameters for the executable files
+    """
     data_dir = './data/'
     save_dir = './saves/'
     save_name = 'best_model'
