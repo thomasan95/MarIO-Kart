@@ -48,11 +48,10 @@ if __name__ == "__main__":
     state = env.reset()
     env.render()
     print('env ready!')
-    with tf.Session() as sess:
-        saver = tf.train.Saver()
-        actor = Actor(sess, saver)
+    with tf.Session() as s:
+        save = tf.train.Saver()
+        actor = Actor(s, save)
         print('actor ready!')
-
         print('beginning episode loop')
         total_reward = 0
         end_episode = False
@@ -61,13 +60,9 @@ if __name__ == "__main__":
             obs, reward, end_episode, info = env.step(action)
             env.render()
             total_reward += reward
-
         print('end episode... total reward: ' + str(total_reward))
-
         obs = env.reset()
         print('env ready!')
-
         input('press <ENTER> to quit')
-
         env.close()
 
