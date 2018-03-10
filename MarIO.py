@@ -10,7 +10,11 @@ print("Using TensorFlow version: " + str(tf.__version__))
 # Load Configs
 conf = config.Config()
 parser = argparse.ArgumentParser(description="specify task of the network")
-parser.add_argument("-t", "-task", type=str, default='train', help="will implement other parameters")
+group = parser.add_mutually_exclusive_group(required=True)
+group.add_argument("-s", "--supervised", action='store_true', help="supervised training")
+group.add_argument("-dqn", "--reinforcement", action='store_true', help="reinforcement learning")
+parser.add_argument("-r", "--resume", action="store_true", help="resume training. Specify file path in config.py")
+
 args = parser.parse_args()
 env = gym.make('Acrobot-v1')
 
@@ -42,6 +46,7 @@ def create_graph():
         # with actor.as_graph_def():
         with tf.variable_scope("actor_input"):
             state_inp = tf.placeholder(tf.float32, shape=conf.inp_shape, name="actor_state_input")
+            supervised_act = tf.placeholder(tf.float32, shap=[None, conf.OUTPUT_SIZE], name="supervised_action")
             actor_action = tf.placeholder(tf.float32, shape=[None, conf.OUTPUT_SIZE], name="actor_action_ph")
             yj = tf.placeholder(tf.float32, shape=[None], name="yj")
         with tf.variable_scope("actor_kernels_weights"):
@@ -66,28 +71,23 @@ def create_graph():
 
             a_w_fc1 = tf.get_variable(name="act_W_fc1", shape=[1152, 1164],
                                       initializer=tf.contrib.layers.xavier_initializer())
-            a_b_fc1 = tf.get_variable(name="act_b_fc1", shape=[1164],
-                                      initializer=tf.contrib.layers.xavier_initializer())
+            a_b_fc1 = tf.get_variable(name="act_b_fc1", shape=[1164], initializer=tf.zeros_initializer)
 
             a_w_fc2 = tf.get_variable(name="act_W_fc2", shape=[1164, 100],
                                       initializer=tf.contrib.layers.xavier_initializer())
-            a_b_fc2 = tf.get_variable(name="act_b_fc2", shape=[100],
-                                      initializer=tf.contrib.layers.xavier_initializer())
+            a_b_fc2 = tf.get_variable(name="act_b_fc2", shape=[100], initializer=tf.zeros_initializer)
 
             a_w_fc3 = tf.get_variable(name="act_W_fc3", shape=[100, 50],
                                       initializer=tf.contrib.layers.xavier_initializer())
-            a_b_fc3 = tf.get_variable(name="act_b_fc3", shape=[50],
-                                      initializer=tf.contrib.layers.xavier_initializer())
+            a_b_fc3 = tf.get_variable(name="act_b_fc3", shape=[50], initializer=tf.zeros_initializer)
 
             a_w_fc4 = tf.get_variable(name="act_W_fc4", shape=[50, 10],
                                       initializer=tf.contrib.layers.xavier_initializer())
-            a_b_fc4 = tf.get_variable(name="act_b_fc4", shape=[10],
-                                      initializer=tf.contrib.layers.xavier_initializer())
+            a_b_fc4 = tf.get_variable(name="act_b_fc4", shape=[10], initializer=tf.zeros_initializer)
 
             a_w_fc5 = tf.get_variable(name="act_W_fc5", shape=[10, env.action_space.n],
                                       initializer=tf.contrib.layers.xavier_initializer())
-            a_b_fc5 = tf.get_variable(name="act_b_fc5", shape=[env.action_space.n],
-                                      initializer=tf.contrib.layers.xavier_initializer())
+            a_b_fc5 = tf.get_variable(name="act_b_fc5", shape=[env.action_space.n], initializer=tf.zeros_initializer)
         with tf.variable_scope("actor_conv_layers"):
             inp_batchnorm = tf.contrib.layers.batch_norm(state_inp, center=True, scale=True, is_training=True)
             conv1 = tf.nn.relu(tf.nn.conv2d(inp_batchnorm, a_w1, strides=[1, 2, 2, 1], padding='VALID') + a_b1)
@@ -107,31 +107,62 @@ def create_graph():
             fc4 = tf.nn.dropout(fc4, keep_prob=conf.keep_prob)
         with tf.name_scope("actor_predictions"):
             out = tf.nn.softsign(tf.matmul(fc4, a_w_fc5) + a_b_fc5, name="actor_output")
+            supervised_loss = tf.sqrt(tf.reduce_sum(tf.square(out - supervised_act)))
             action = tf.reduce_sum(tf.multiply(out, actor_action), axis=1)
             tf.summary.histogram('outputs', out)
             tf.summary.scalar('action', action)
+            tf.summary.scalar('supervised_loss', supervised_loss)
         with tf.name_scope("actor_loss"):
             loss = tf.reduce_mean(tf.square(action - yj), name="sse_loss")
             tf.summary.scalar("actor_loss", loss)
         with tf.name_scope("actor_optimizer"):
-            optim = tf.train.AdamOptimizer().minimize(loss)
+            optim_supervised = tf.train.AdamOptimizer().minimize(supervised_loss)
+            optim_reinforcement = tf.train.AdamOptimizer().minimize(loss)
     actor_nodes = {"state_inp": state_inp,
                    "action_inp": actor_action,
                    "yj": yj,
                    "out": out,
                    "action": action,
+                   "s_action": supervised_act,
                    "loss": loss,
-                   "optim": optim}
+                   "s_loss": supervised_loss,
+                   "optim_r": optim_reinforcement,
+                   "optim_s": optim_supervised}
     return state_inp, actor_nodes
 
 
 def supervised_train(nodes):
+    """
+    Performs supervised training on the agent
+    :param nodes: graph nodes
+    :type nodes: dict
+    :return: losses during the training cycle
+    :rtype: list
+    """
     print("inside supervised")
     max_epochs = conf.epochs
     batch_size = conf.batch_size
+    x_train = np.load("data/X.npy")
+    y_train = np.load("data/y.npy")
+    num_batches = len(x_train)//batch_size
+    losses = []
     with tf.Session() as sess:
+        saver = tf.train.Saver()
+        sess.run(tf.global_variables_initializer())
+        train_writer = tf.summary.FileWriter(conf.sum_dir + './train/', sess.graph)
+        train_iter = 0
         for epoch in range(1, max_epochs + 1):
-            input_tensor = utils.get_batches()
+            for batch_i in range(num_batches + 1):
+                x_input, y_input = utils.get_batches(x_train, y_train, batch_i, batch_size)
+                loss, _ = sess.run([nodes["s_loss"], nodes["optim_s"]],
+                                   feed_dict={nodes["state_inp"]: x_input,
+                                              nodes["s_action"]: y_input})
+                losses.append(loss)
+                train_iter += 1
+                if train_iter % conf.save_freq == 0:
+                    saver.save(sess, conf.save_dir + conf.save_name)
+        train_writer.close()
+        return losses
 
 
 def deep_q_train(nodes):
@@ -194,9 +225,9 @@ def deep_q_train(nodes):
                         yj.append(mem_reward[i] + conf.learning_rate*np.max(mem_out[i]))
 
                     # Perform gradient descent on the loss function with respect to the yj and predicted output
-                    _ = sess.run(nodes["optimizer"], feed_dict={nodes["yj"]: yj,
-                                                                nodes["action_inp"]: mem_action,
-                                                                nodes["state_inp"]: mem_state})
+                    _ = sess.run(nodes["optim_r"], feed_dict={nodes["yj"]: yj,
+                                                              nodes["action_inp"]: mem_action,
+                                                              nodes["state_inp"]: mem_state})
                 state = new_state
                 time_step += 1
                 if time_step % conf.save_freq == 0:
@@ -212,9 +243,9 @@ def main():
         graph, nodes = create_graph()
     print(tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope="Actor_Graph"))
     if conf.is_training:
-        if conf.training_phase == 1:
+        if args.supervised == 1:
             supervised_train(nodes)
-        if conf.training_phase == 2:
+        if args.reinforcement == 2:
             deep_q_train(nodes)
 
 
