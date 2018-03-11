@@ -182,7 +182,7 @@ def supervised_train(nodes):
                 else:
                     num_batches = len(x_train) // batch_size
                     val_size = len(x_val) // batch_size
-                for batch_i, (x_input, y_input) in enumerate(utils.get_batches(x_train, y_train, batch_size)):
+                for batch_i, (x_input, y_input) in enumerate(utils.get_4d_batches(x_train, y_train, batch_size)):
                     loss, _ = sess.run([nodes["s_loss"], nodes["optim_s"]], feed_dict={nodes["state_inp"]: x_input,
                                                                                        nodes["s_action"]: y_input})
                     train_loss += loss
@@ -193,7 +193,7 @@ def supervised_train(nodes):
                         saver.save(sess, conf.save_dir + conf.save_name)
                 if len(x_val) < batch_size:
                     batch_size = len(x_val)
-                for val_i, (val_x_inp, val_y_inp) in enumerate(utils.get_batches(x_val, y_val, batch_size)):
+                for val_i, (val_x_inp, val_y_inp) in enumerate(utils.get_4d_batches(x_val, y_val, batch_size)):
                     loss = sess.run(nodes["s_loss"], feed_dict={nodes["state_inp"]: val_x_inp,
                                                                 nodes["s_action"]: val_y_inp})
                     val_loss += loss
