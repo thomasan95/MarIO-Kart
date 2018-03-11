@@ -68,6 +68,7 @@ if __name__ == "__main__":
                 state[:, :, :3] = observation
             action = actor.get_action(state)
             observation, reward, end_episode, info = env.step(action)
+            observation = utils.resize_img(observation)
             env.render()
             total_reward += reward
         print('end episode... total reward: ' + str(total_reward))
