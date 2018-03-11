@@ -5,12 +5,14 @@ import glob
 import csv
 path = 'samples'
 
+
 def main():
-    #mirror_images()
+    # mirror_images()
     races = filter( lambda f: not f.startswith('.'), os.listdir(path))
     for race in races:
         mirror_images_2(race)
         start_frames(race)
+
 
 def mirror_images():
     races = filter( lambda f: not f.startswith('.'), os.listdir(path))
@@ -53,6 +55,7 @@ def mirror_images():
         newFile.write(new_file)
         newFile.close()
 
+
 def mirror_images_2(race):
     assert isinstance(race,str)
 
@@ -66,7 +69,7 @@ def mirror_images_2(race):
     # Get all images (.png) from race folder
     files = filter( lambda f: not f.startswith('.'), os.listdir(race_path))
     for file in files:
-        #ignore hidden files
+        # ignore hidden files
         ext = os.path.splitext(file)[-1].lower()
         if not ext=='.png':
             csv_file = file
@@ -108,10 +111,9 @@ def start_frames(race):
     if not os.path.isdir(start_frame_path):
         os.mkdir(start_frame_path)
 
-    
     # ignore hidden files
     files = filter( lambda f: not f.startswith('.'), os.listdir(race_path))
-    for file in files:#os.listdir(race_path):
+    for file in files:  # os.listdir(race_path):
         # Find CSV file
         ext = os.path.splitext(file)[-1].lower()
         if ext =='.csv':
