@@ -167,7 +167,7 @@ def supervised_train(nodes):
                 x_d = x_list[file_i]
                 y_d = y_list[file_i]
                 if x_d[2:] is not y_d[2:]:
-                    print("File not the same. They are: ", x_d, " and ", y_d)
+                    print("File not the same. They are: " + x_d[2:] + " and " + y_d[2:])
                     continue
                 print("Loading ", str(num) + " files: ", x_d, " and " , y_d)
                 x_data, y_data = np.load(conf.data_dir + x_d), np.load(conf.data_dir + y_d)
