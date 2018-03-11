@@ -49,6 +49,7 @@ class Actor(object):
 if __name__ == "__main__":
     env = gym.make('Mario-Kart-Royal-Raceway-v0')
     state = env.reset()
+    state = np.dstack((state, state, state, state))
     env.render()
     print('env ready!')
     with tf.Session() as s:
@@ -57,9 +58,11 @@ if __name__ == "__main__":
         print('beginning episode loop')
         total_reward = 0
         end_episode = False
+        first = True
         while not end_episode:
             action = actor.get_action(state)
             observation, reward, end_episode, info = env.step(action)
+            state[:, :, :3] = observation
             env.render()
             total_reward += reward
         print('end episode... total reward: ' + str(total_reward))
