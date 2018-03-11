@@ -23,7 +23,7 @@ class Actor(object):
             vec = resize_img(obs)
             vec = np.expand_dims(vec, axis=0)  # expand dimensions for predict, it wants (1,66,200,3) not (66, 200, 3)
             # Think
-            out = self.sess.run(self.model["out"], feed_dict={self.model["state_inp"]: obs})
+            out = self.sess.run(self.model["out"], feed_dict={self.model["state_inp"]: vec})
             joystick = out[0]
         else:
             joystick = self.real_controller.read()
@@ -57,11 +57,11 @@ if __name__ == "__main__":
         end_episode = False
         while not end_episode:
             action = actor.get_action(state)
-            obs, reward, end_episode, info = env.step(action)
+            observation, reward, end_episode, info = env.step(action)
             env.render()
             total_reward += reward
         print('end episode... total reward: ' + str(total_reward))
-        obs = env.reset()
+        observation = env.reset()
         print('env ready!')
         input('press <ENTER> to quit')
         env.close()
