@@ -7,7 +7,7 @@ class Config(object):
     save_name = 'best_model'
     rom_dir = './ROM/'
     pickle_dir = './pickles/'
-    actor_checkpoint = './saves/actor/actor_model.ckpt'
+    checkpoint = './saves/actor/actor_model.ckpt'
     learning_rate = 0.001
     keep_prob = 0.8
     decay_steps = 100000

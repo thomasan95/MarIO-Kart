@@ -156,7 +156,10 @@ def supervised_train(nodes):
     y_list.sort()
     with tf.Session() as sess:
         saver = tf.train.Saver()
-        sess.run(tf.global_variables_initializer())
+        if args.resume:
+            saver.restore(sess, conf.save_dir + conf.save_name)
+        else:
+            sess.run(tf.global_variables_initializer())
         train_writer = tf.summary.FileWriter(conf.sum_dir + './train/', sess.graph)
         train_iter = 0
         for epoch in range(1, conf.epochs + 1):
