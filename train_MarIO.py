@@ -10,6 +10,7 @@ from sklearn.model_selection import train_test_split
 import pickle as pkl
 import os
 print("Using TensorFlow version: " + str(tf.__version__))
+print("This code was developed in version: 1.6")
 # Load Configs
 conf = config.Config()
 parser = argparse.ArgumentParser(description="specify task of the network")
