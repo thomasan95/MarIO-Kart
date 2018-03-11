@@ -30,10 +30,14 @@ for race in os.listdir(path):
         row = row.split(',')
         if len(row) >1:
             row[1]=str(-float(row[1]))
-            row[2]=str(-float(row[2]))
+            row[2]=str(float(row[2]))
             row[0]= newPath+'/'+csv_file
         row = ','.join(row)
         times.append(row)
+
+    start_frames = rows[:30]*20
+    times.extend(start_frames)
+
     new_file = '\n'.join(times)
     newFile = open(newPath+'/'+csv_file,'w')
     newFile.write(new_file)
