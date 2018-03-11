@@ -30,8 +30,6 @@ def get_4d_batches(x_train, y_train, batch_size):
         start = batch_i * batch_size
         end = start + batch_size
         batch_x = np.zeros((batch_size, conf.img_h, conf.img_w, conf.img_d*conf.num_frames))
-        # batch_y = np.zeros((batch_size, conf.OUTPUT_SIZE))
-        s = 0
         counter = 0
         batch_y = np.zeros((batch_size, conf.OUTPUT_SIZE))
         for d_i in range(start, end-3):
@@ -41,7 +39,6 @@ def get_4d_batches(x_train, y_train, batch_size):
             four = x_train[d_i+3]
             batch_x[counter] = np.dstack((one, two, three, four))
             batch_y[counter] = y_train[d_i+3]
-            # batch_y[counter] = y_train[d_i+3]
             counter += 1
         yield batch_x, batch_y
 
