@@ -4,15 +4,18 @@ import config
 import numpy as np
 from termcolor import cprint
 import gym
+import gym_mupen64plus
 import tensorflow as tf
 conf = config.Config()
 
 
 class Actor(object):
-    def __init__(self, sess, saver):
-        self.state_inp, self.model = create_graph(keep_prob=1)
+    def __init__(self, sess):
+        with tf.variable_scope("Actor_Graph"):
+            self.state_inp, self.model = create_graph(keep_prob=1)
         self.sess = sess
-        saver.restore(sess, conf.save_dir + conf.save_name)
+        self.saver = tf.train.Saver()
+        self.saver.restore(sess, conf.save_dir + conf.save_name)
 
         self.real_controller = XboxController()
 
@@ -49,8 +52,7 @@ if __name__ == "__main__":
     env.render()
     print('env ready!')
     with tf.Session() as s:
-        save = tf.train.Saver()
-        actor = Actor(s, save)
+        actor = Actor(s)
         print('actor ready!')
         print('beginning episode loop')
         total_reward = 0
