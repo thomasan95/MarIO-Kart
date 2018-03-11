@@ -160,6 +160,7 @@ def supervised_train(nodes):
         train_writer = tf.summary.FileWriter(conf.sum_dir + './train/', sess.graph)
         train_iter = 0
         for epoch in range(1, conf.epochs + 1):
+            print("\nEpoch %d\n" % epoch)
             train_loss, val_loss = 0, 0
             indexes = np.arange(len(x_list))
             if conf.shuffle:
@@ -171,7 +172,7 @@ def supervised_train(nodes):
                 if not (x_d[2:] == y_d[2:]):
                     print("File not the same. They are: " + x_d[2:] + " and " + y_d[2:])
                     continue
-                print("Loading ", str(num) + " files: ", x_d, " and " , y_d)
+                print("Loading ", str(num) + "th Race: ", x_d[2:])
                 x_data, y_data = np.load(conf.data_dir + x_d), np.load(conf.data_dir + y_d)
                 x_train, x_val, y_train, y_val = train_test_split(x_data, y_data, test_size=conf.val_split)
                 if len(x_train) < batch_size:
