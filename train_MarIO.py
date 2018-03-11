@@ -51,7 +51,7 @@ def create_graph(keep_prob=conf.keep_prob):
             actor_action = tf.placeholder(tf.float32, shape=[None, conf.OUTPUT_SIZE], name="actor_action_ph")
             yj = tf.placeholder(tf.float32, shape=[None], name="yj")
         with tf.variable_scope("actor_kernels_weights"):
-            a_w1 = tf.get_variable(name="act_W1", shape=[5, 5, 3, 24],
+            a_w1 = tf.get_variable(name="act_W1", shape=[5, 5, 12, 24],
                                    initializer=tf.contrib.layers.xavier_initializer())
             a_b1 = tf.get_variable(name="act_b1", shape=[24], initializer=tf.zeros_initializer)
             a_w2 = tf.get_variable(name='act_W2', shape=[5, 5, 24, 36],
