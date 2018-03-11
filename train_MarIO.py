@@ -5,6 +5,7 @@ import argparse
 import random
 import utilities as utils
 import gym
+import gym_mupen64plus
 from collections import deque
 from sklearn.model_selection import train_test_split
 import pickle as pkl
@@ -233,12 +234,14 @@ def deep_q_train(nodes):
             # Will replace with samples from the initial game screen
             # Want to send in 4 screens at a time to process, so stack along depth of image
             input_tensor = env.reset()
-            state = np.stack((input_tensor, input_tensor, input_tensor, input_tensor), axis=2)
+            input_tensor = utils.resize_img(input_tensor)
+            inp = np.dstack((input_tensor, input_tensor, input_tensor, input_tensor))
             time_step = 0
             while still_in_episode:
                 # Grab actions from first state
                 action_input = np.zeros([conf.OUTPUT_SIZE])
-                out_t = sess.run(nodes["out"], feed_dict={nodes["inp"]: state})[0]
+                state = np.expand_dims(inp, axis=0)
+                out_t = sess.run(nodes["out"], feed_dict={nodes["state_inp"]: state})[0]
                 # Perform random explore action or else grab maximum output
                 if random.random() <= epsilon:
                     act_indx = random.randrange(conf.OUTPUT_SIZE)
@@ -255,7 +258,10 @@ def deep_q_train(nodes):
                 if end_episode:
                     still_in_episode = False
                 env.render()
-                new_state = np.append(obs, state[:, :, 0:3*(conf.num_frames - 1)], axis=2)
+                obs = np.expand_dims(obs, axis=0)
+                new_state = np.zeros(state.shape)
+                new_state[:, :, :, :3] = obs
+                new_state[:, :, :, 3:] = state[:, :, :, :9]
                 # Add to memory
                 memory.append((state, action_input, reward, new_state))
 
