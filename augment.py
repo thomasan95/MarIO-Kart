@@ -1,8 +1,6 @@
 import os
 import numpy as np
 import matplotlib.pyplot as plt
-import glob
-import csv
 path = 'samples'
 
 
