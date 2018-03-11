@@ -165,6 +165,7 @@ def supervised_train(nodes):
             if conf.shuffle:
                 np.random.shuffle(indexes)
             for num, file_i in enumerate(indexes):
+                batch_size = conf.batch_size
                 x_d = x_list[file_i]
                 y_d = y_list[file_i]
                 if not (x_d[2:] == y_d[2:]):
@@ -173,9 +174,14 @@ def supervised_train(nodes):
                 print("Loading ", str(num) + " files: ", x_d, " and " , y_d)
                 x_data, y_data = np.load(conf.data_dir + x_d), np.load(conf.data_dir + y_d)
                 x_train, x_val, y_train, y_val = train_test_split(x_data, y_data, test_size=conf.val_split)
-                num_batches = len(x_train) // batch_size
-                val_size = len(x_val) // batch_size
-                for batch_i, (x_input, y_input) in enumerate(utils.get_batches(x_train, y_train, conf.batch_size)):
+                if len(x_train) < batch_size:
+                    batch_size = len(x_train)
+                    num_batches = 1
+                    val_size = 1
+                else:
+                    num_batches = len(x_train) // batch_size
+                    val_size = len(x_val) // batch_size
+                for batch_i, (x_input, y_input) in enumerate(utils.get_batches(x_train, y_train, batch_size)):
                     loss, _ = sess.run([nodes["s_loss"], nodes["optim_s"]],
                                        feed_dict={nodes["state_inp"]: x_input,
                                                   nodes["s_action"]: y_input})
@@ -185,7 +191,9 @@ def supervised_train(nodes):
                         print("Done with %d iterations of training:\tCurr Loss: %f" % (train_iter, loss))
                     if train_iter % conf.save_freq == 0:
                         saver.save(sess, conf.save_dir + conf.save_name)
-                for val_i, (val_x_inp, val_y_inp) in enumerate(utils.get_batches(x_val, y_val, conf.batch_size)):
+                if len(x_val) < batch_size:
+                    batch_size = len(x_val)
+                for val_i, (val_x_inp, val_y_inp) in enumerate(utils.get_batches(x_val, y_val, batch_size)):
                     loss = sess.run(nodes["s_loss"], feed_dict={nodes["state_inp"]: val_x_inp,
                                                                 nodes["s_action"]: val_y_inp})
                     val_loss += loss
@@ -197,7 +205,7 @@ def supervised_train(nodes):
 
         # Close train writer
         train_writer.close()
-        return losses, val_losses
+        return losses
 
 
 def deep_q_train(nodes):
