@@ -141,7 +141,8 @@ def supervised_train(nodes):
     """
     print("\nSupervised Training\n")
     batch_size = conf.batch_size
-    losses, val_losses = [], []
+    losses = {'train': [],
+              'valid': []}
     x_list, y_list = [], []
     for npy in os.listdir('data'):
         ext = os.path.splitext(npy)[-1].lower()
@@ -166,7 +167,7 @@ def supervised_train(nodes):
             for num, file_i in enumerate(indexes):
                 x_d = x_list[file_i]
                 y_d = y_list[file_i]
-                if x_d[2:] is not y_d[2:]:
+                if not (x_d[2:] == y_d[2:]):
                     print("File not the same. They are: " + x_d[2:] + " and " + y_d[2:])
                     continue
                 print("Loading ", str(num) + " files: ", x_d, " and " , y_d)
@@ -189,10 +190,10 @@ def supervised_train(nodes):
                                                                 nodes["s_action"]: val_y_inp})
                     val_loss += loss
                 # Append losses to generate plots in the future
-                losses.append(train_loss / num_batches)
-                val_losses.append(val_loss / val_size)
-                pkl.dump(losses, conf.pickle_dir + 'train_losses.p')
-                pkl.dump(val_losses, conf.pickle_dir + 'valid_loss.p')
+                losses["train"].append(train_loss / num_batches)
+                losses["valid"].append(val_loss / val_size)
+                with open(conf.pickle_dir + 'losses.p', 'wb') as f:
+                    pkl.dump(losses, f)
 
         # Close train writer
         train_writer.close()
