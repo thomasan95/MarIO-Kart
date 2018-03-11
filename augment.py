@@ -11,7 +11,7 @@ for race in os.listdir(path):
         imagePath = path+'/'+race
         if not os.path.isdir('aug'):
             os.mkdir('aug')
-        newPath = 'aug/'+race
+        newPath = 'aug/'+race+'mirrored'
         if not os.path.isdir(newPath):
             os.mkdir(newPath)
     for image in os.listdir(imagePath):
@@ -31,6 +31,7 @@ for race in os.listdir(path):
         if len(row) >1:
             row[1]=str(-float(row[1]))
             row[2]=str(-float(row[2]))
+            row[0]= newPath+'/'+csv_file
         row = ','.join(row)
         times.append(row)
     new_file = '\n'.join(times)
