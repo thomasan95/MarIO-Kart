@@ -25,9 +25,9 @@ class Actor(object):
         if not manual_override:
             # Look
             # vec = resize_img(obs)
-            # vec = np.expand_dims(vec, axis=0)  # expand dimensions for predict, it wants (1,66,200,3) not (66, 200, 3)
+            vec = np.expand_dims(vec, axis=0)  # expand dimensions for predict, it wants (1,66,200,3) not (66, 200, 3)
             # Think
-            out = self.sess.run(self.model["out"], feed_dict={self.model["state_inp"]: obs})
+            out = self.sess.run(self.model["out"], feed_dict={self.model["state_inp"]: vec})
             joystick = out[0]
         else:
             joystick = self.real_controller.read()
