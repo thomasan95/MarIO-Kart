@@ -8,6 +8,7 @@ import gym
 from collections import deque
 from sklearn.model_selection import train_test_split
 import pickle as pkl
+import os
 print("Using TensorFlow version: " + str(tf.__version__))
 # Load Configs
 conf = config.Config()
@@ -140,13 +141,18 @@ def supervised_train(nodes):
     """
     print("\nSupervised Training\n")
     batch_size = conf.batch_size
-    print("Loading Data")
-    x_data = np.load(conf.data_dir + "X.npy")
-    y_data = np.load(conf.data_dir + "y.npy")
-    x_train, x_val, y_train, y_val = train_test_split(x_data, y_data, test_size=conf.val_split)
-    num_batches = len(x_train)//batch_size
-    val_size = len(x_val)//batch_size
     losses, val_losses = [], []
+    x_list, y_list = [], []
+    for npy in os.listdir('data'):
+        ext = os.path.splitext(npy)[-1].lower()
+        if not ext == '.npy':
+            continue
+        if npy[0] == 'X':
+            x_list.append(npy)
+        elif npy[0] == 'y':
+            y_list.append(npy)
+    x_list.sort()
+    y_list.sort()
     with tf.Session() as sess:
         saver = tf.train.Saver()
         sess.run(tf.global_variables_initializer())
@@ -154,25 +160,40 @@ def supervised_train(nodes):
         train_iter = 0
         for epoch in range(1, conf.epochs + 1):
             train_loss, val_loss = 0, 0
-            for batch_i, (x_input, y_input) in enumerate(utils.get_batches(x_train, y_train, conf.batch_size)):
-                loss, _ = sess.run([nodes["s_loss"], nodes["optim_s"]],
-                                   feed_dict={nodes["state_inp"]: x_input,
-                                              nodes["s_action"]: y_input})
-                train_loss += loss
-                train_iter += 1
-                if train_iter % 10 == 0:
-                    print("Done with %d iterations of training:\tCurr Loss: %f" % (train_iter, loss))
-                if train_iter % conf.save_freq == 0:
-                    saver.save(sess, conf.save_dir + conf.save_name)
-            for val_i, (val_x_inp, val_y_inp) in enumerate(utils.get_batches(x_val, y_val, conf.batch_size)):
-                loss = sess.run(nodes["s_loss"], feed_dict={nodes["state_inp"]: val_x_inp,
-                                                            nodes["s_action"]: val_y_inp})
-                val_loss += loss
-            # Append losses to generate plots in the future
-            losses.append(train_loss / num_batches)
-            val_losses.append(val_loss/val_size)
-            pkl.dump(losses, conf.pickle_dir + 'train_losses.p')
-            pkl.dump(val_losses, conf.pickle_dir + 'valid_loss.p')
+            indexes = np.arange(len(x_list))
+            if conf.shuffle:
+                np.random.shuffle(indexes)
+            for num, file_i in enumerate(indexes):
+                x_d = x_list[file_i]
+                y_d = y_list[file_i]
+                if x_d[2:] is not y_d[2:]:
+                    print("File not the same. They are: ", x_d, " and ", y_d)
+                    continue
+                print("Loading ", str(num) + " files: ", x_d, " and " , y_d)
+                x_data, y_data = np.load(conf.data_dir + x_d), np.load(conf.data_dir + y_d)
+                x_train, x_val, y_train, y_val = train_test_split(x_data, y_data, test_size=conf.val_split)
+                num_batches = len(x_train) // batch_size
+                val_size = len(x_val) // batch_size
+                for batch_i, (x_input, y_input) in enumerate(utils.get_batches(x_train, y_train, conf.batch_size)):
+                    loss, _ = sess.run([nodes["s_loss"], nodes["optim_s"]],
+                                       feed_dict={nodes["state_inp"]: x_input,
+                                                  nodes["s_action"]: y_input})
+                    train_loss += loss
+                    train_iter += 1
+                    if train_iter % 10 == 0:
+                        print("Done with %d iterations of training:\tCurr Loss: %f" % (train_iter, loss))
+                    if train_iter % conf.save_freq == 0:
+                        saver.save(sess, conf.save_dir + conf.save_name)
+                for val_i, (val_x_inp, val_y_inp) in enumerate(utils.get_batches(x_val, y_val, conf.batch_size)):
+                    loss = sess.run(nodes["s_loss"], feed_dict={nodes["state_inp"]: val_x_inp,
+                                                                nodes["s_action"]: val_y_inp})
+                    val_loss += loss
+                # Append losses to generate plots in the future
+                losses.append(train_loss / num_batches)
+                val_losses.append(val_loss / val_size)
+                pkl.dump(losses, conf.pickle_dir + 'train_losses.p')
+                pkl.dump(val_losses, conf.pickle_dir + 'valid_loss.p')
+
         # Close train writer
         train_writer.close()
         return losses, val_losses

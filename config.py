@@ -40,4 +40,4 @@ class Config(object):
     start_memory_sample = 50000
     max_episodes = 500000
     val_split = 0.1
-
+    shuffle = True
