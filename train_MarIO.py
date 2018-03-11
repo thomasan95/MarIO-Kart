@@ -140,7 +140,6 @@ def supervised_train(nodes):
     :rtype: list
     """
     print("\nSupervised Training\n")
-    batch_size = conf.batch_size
     losses = {'train': [],
               'valid': []}
     x_list, y_list = [], []
@@ -172,7 +171,7 @@ def supervised_train(nodes):
                 if not (x_d[2:] == y_d[2:]):
                     print("File not the same. They are: " + x_d[2:] + " and " + y_d[2:])
                     continue
-                print("Loading ", str(num) + "th Race: ", x_d[2:])
+                print("Loading " + str(num) + "th Race: " + x_d[2:])
                 x_data, y_data = np.load(conf.data_dir + x_d), np.load(conf.data_dir + y_d)
                 x_train, x_val, y_train, y_val = train_test_split(x_data, y_data, test_size=conf.val_split)
                 if len(x_train) < batch_size:
@@ -183,9 +182,8 @@ def supervised_train(nodes):
                     num_batches = len(x_train) // batch_size
                     val_size = len(x_val) // batch_size
                 for batch_i, (x_input, y_input) in enumerate(utils.get_batches(x_train, y_train, batch_size)):
-                    loss, _ = sess.run([nodes["s_loss"], nodes["optim_s"]],
-                                       feed_dict={nodes["state_inp"]: x_input,
-                                                  nodes["s_action"]: y_input})
+                    loss, _ = sess.run([nodes["s_loss"], nodes["optim_s"]], feed_dict={nodes["state_inp"]: x_input,
+                                                                                       nodes["s_action"]: y_input})
                     train_loss += loss
                     train_iter += 1
                     if train_iter % 10 == 0:
@@ -199,11 +197,10 @@ def supervised_train(nodes):
                                                                 nodes["s_action"]: val_y_inp})
                     val_loss += loss
                 # Append losses to generate plots in the future
-                losses["train"].append(train_loss / num_batches)
-                losses["valid"].append(val_loss / val_size)
+                losses["train"].append(train_loss/num_batches)
+                losses["valid"].append(val_loss/val_size)
                 with open(conf.pickle_dir + 'losses.p', 'wb') as f:
                     pkl.dump(losses, f)
-
         # Close train writer
         train_writer.close()
         return losses
@@ -226,11 +223,12 @@ def deep_q_train(nodes):
         # Initialize memory to some capacity
         memory = deque(maxlen=conf.replay_memory)
         epsilon = conf.initial_epsilon
+
         for episode in range(1, conf.max_episodes):
             still_in_episode = True
             # Will replace with samples from the initial game screen
-            input_tensor = np.ones((conf.img_h, conf.img_w, conf.img_d))
             # Want to send in 4 screens at a time to process, so stack along depth of image
+            input_tensor = env.reset()
             state = np.stack((input_tensor, input_tensor, input_tensor, input_tensor), axis=2)
             time_step = 0
             while still_in_episode:
@@ -243,16 +241,16 @@ def deep_q_train(nodes):
                 else:
                     act_indx = np.argmax(out_t)
                 action_input[act_indx] = 1
+                # Randomness factor
                 if epsilon > conf.final_epsilon:
                     epsilon *= conf.epsilon_decay
                 # Observe next reward from action
-                obs, reward, end_episode, info = env.step(action_input)
+                observation, reward, end_episode, info = env.step(action_input)
                 # Finish rest of the pipeline for this time step, but proceed to the next episode after
+                obs = utils.resize_img(observation)
                 if end_episode:
                     still_in_episode = False
                 env.render()
-                ''' Perform some preprocessing on obs? Not entirely sure what object is spit out from obs '''
-                ''' Maybe need to downsample observation again, like they do in the TensorKart utils '''
                 new_state = np.append(obs, state[:, :, 0:3*(conf.num_frames - 1)], axis=2)
                 # Add to memory
                 memory.append((state, action_input, reward, new_state))
@@ -317,7 +315,7 @@ def main():
         graph, nodes = create_graph()
     if conf.is_training:
         if args.supervised:
-            losses, val_losses = supervised_train(nodes)
+            losses = supervised_train(nodes)
         elif args.reinforcement:
             deep_q_train(nodes)
 

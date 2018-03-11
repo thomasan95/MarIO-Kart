@@ -3,6 +3,7 @@ import config
 import math
 from inputs import get_gamepad
 import threading
+import numpy as np
 conf = config.Config()
 
 
@@ -22,6 +23,23 @@ def get_batches(x_train, y_train, batch_size):
         batch_x = x_train[start:end]
         labels = y_train[start:end]
         yield batch_x, labels
+
+
+def get_4d_batches(x_train, y_train, batch_size):
+    for batch_i in range(len(x_train) // batch_size):
+        start = batch_i * batch_size
+        end = start + batch_size
+        batch_x = []
+        batch_y = []
+        for d_i in range(start, end-3):
+            one = x_train[d_i]
+            two = x_train[d_i+1]
+            three = x_train[d_i+2]
+            four = x_train[d_i+3]
+            batch_x.append(np.stack((one, two, three, four), axis=3))
+            batch_y.append(y_train[d_i+3])
+        yield batch_x, batch_y
+
 
 
 def resize_img(img):
