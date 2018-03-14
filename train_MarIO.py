@@ -202,7 +202,6 @@ def supervised_train(nodes):
                     train_loss += loss
                     train_iter += 1
                     if train_iter % 10 == 0:
-                        print(loss.shape)
                         print("Done with %d iterations of training:\tCurr Loss: %f" % (train_iter, loss))
                     if train_iter % conf.save_freq == 0:
                         saver.save(sess, conf.save_dir + conf.save_name)
