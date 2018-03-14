@@ -5,6 +5,7 @@ from inputs import get_gamepad
 import threading
 import numpy as np
 from skimage.io import imread
+import sys
 conf = config.Config()
 
 
@@ -181,3 +182,8 @@ def prepare(samples):
     np.save("data/y", y)
     print("Done!")
     return
+
+
+if __name__ == "__main__":
+    if sys.argv[1] == 'prepare':
+        prepare(sys.argv[2:])

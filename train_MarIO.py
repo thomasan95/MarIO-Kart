@@ -91,8 +91,8 @@ def create_graph(keep_prob=conf.keep_prob):
                                       initializer=tf.contrib.layers.xavier_initializer())
             a_b_fc5 = tf.get_variable(name="act_b_fc5", shape=[conf.OUTPUT_SIZE], initializer=tf.zeros_initializer)
         with tf.variable_scope("actor_conv_layers"):
-            inp_batchnorm = tf.contrib.layers.batch_norm(state_inp, center=True, scale=True, is_training=True)
-            conv1 = tf.nn.relu(tf.nn.conv2d(inp_batchnorm, a_w1, strides=[1, 2, 2, 1], padding='VALID') + a_b1)
+            # inp_batchnorm = tf.contrib.layers.batch_norm(state_inp, center=True, scale=True, is_training=True)
+            conv1 = tf.nn.relu(tf.nn.conv2d(state_inp, a_w1, strides=[1, 2, 2, 1], padding='VALID') + a_b1)
             conv2 = tf.nn.relu(tf.nn.conv2d(conv1, a_w2, strides=[1, 2, 2, 1], padding='VALID') + a_b2)
             conv3 = tf.nn.relu(tf.nn.conv2d(conv2, a_w3, strides=[1, 2, 2, 1], padding='VALID') + a_b3)
             conv4 = tf.nn.relu(tf.nn.conv2d(conv3, a_w4, strides=[1, 1, 1, 1], padding='VALID') + a_b4)
@@ -109,7 +109,7 @@ def create_graph(keep_prob=conf.keep_prob):
             fc4 = tf.nn.dropout(fc4, keep_prob=keep_prob)
         with tf.name_scope("actor_predictions"):
             out = tf.nn.softsign(tf.matmul(fc4, a_w_fc5) + a_b_fc5, name="actor_output")
-            supervised_loss = tf.sqrt(tf.reduce_sum(tf.square(out - supervised_act), axis=-1))
+            supervised_loss = tf.sqrt(tf.reduce_sum(tf.square(out - supervised_act)))
             action = tf.reduce_sum(tf.multiply(out, actor_action), axis=1)
             tf.summary.histogram('outputs', out)
             tf.summary.scalar('action', action)
@@ -192,6 +192,7 @@ def supervised_train(nodes):
                     train_loss += loss
                     train_iter += 1
                     if train_iter % 10 == 0:
+                        print(loss.shape)
                         print("Done with %d iterations of training:\tCurr Loss: %f" % (train_iter, loss))
                     if train_iter % conf.save_freq == 0:
                         saver.save(sess, conf.save_dir + conf.save_name)
