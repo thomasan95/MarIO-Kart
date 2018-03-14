@@ -6,14 +6,14 @@ path = 'samples'
 
 def main():
     # mirror_images()
-    races = filter( lambda f: not f.startswith('.'), os.listdir(path))
+    races = filter(lambda f: not f.startswith('.'), os.listdir(path))
     for race in races:
         mirror_images_2(race)
         start_frames(race)
 
 
 def mirror_images():
-    races = filter( lambda f: not f.startswith('.'), os.listdir(path))
+    races = filter(lambda f: not f.startswith('.'), os.listdir(path))
     for race in races:
         if race =='.keep':
             continue
@@ -105,30 +105,34 @@ def start_frames(race):
     if not os.path.isdir('start_frames'):
         os.mkdir('start_frames')
 
-    # make directory for specific racfes
+    # make directory for specific races
     if not os.path.isdir(start_frame_path):
         os.mkdir(start_frame_path)
 
     # ignore hidden files
     files = filter( lambda f: not f.startswith('.'), os.listdir(race_path))
+    csv_file = ""
     for file in files:  # os.listdir(race_path):
         # Find CSV file
         ext = os.path.splitext(file)[-1].lower()
-        if ext =='.csv':
+        if ext == '.csv':
             csv_file = file
             break
+        else:
+            print("No CSV file found.")
+            return
 
-    with open(race_path+'/'+csv_file,'r') as f:
+    with open(race_path+'/' + csv_file, 'r') as f:
         rows = f.read().splitlines()
 
-    new_commands=[]
+    new_commands = []
     for row in rows[:30]:
         row = row.split(',')
-        if len(row) >1:
+        if len(row) > 1:
             image_to_save = plt.imread(row[0])
             image_path = start_frame_path+'/'+row[0].split('/')[-1]
             plt.imsave(image_path ,image_to_save)
-            row[0]= image_path
+            row[0] = image_path
         row = ','.join(row)
         new_commands.append(row)
 
