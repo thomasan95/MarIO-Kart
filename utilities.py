@@ -4,6 +4,7 @@ import math
 from inputs import get_gamepad
 import threading
 import numpy as np
+from skimage.io import imread
 conf = config.Config()
 
 
@@ -137,3 +138,46 @@ class XboxController(object):
                     self.UpDPad = event.state
                 elif event.code == 'BTN_TRIGGER_HAPPY4':
                     self.DownDPad = event.state
+
+
+def load_sample(sample):
+    """
+    Loads a specific sample from csv
+    :param sample: folder where csv files are found
+    :return: loaded images and loaded joystick outputs
+    :rtype: numpy.ndarray, numpy.ndarray
+    """
+    image_files = np.loadtxt(sample + '/data.csv', delimiter=',', dtype=str, usecols=(0,))
+    joystick_values = np.loadtxt(sample + '/data.csv', delimiter=',', usecols=(1, 2, 3, 4, 5))
+    return image_files, joystick_values
+
+
+def prepare(samples):
+    """
+    Processes data into .npy files so the network can train on them
+
+    :param samples: all folders to be read from
+    :type samples: list
+    :return: None
+    """
+    print("Preparing data")
+    x = []
+    y = []
+    for sample in samples:
+        print(sample)
+        # load sample
+        image_files, joystick_values = load_sample(sample)
+        # add joystick values to y
+        y.append(joystick_values)
+        # load, prepare and add images to X
+        for image_file in image_files:
+            image = imread(image_file)
+            vec = resize_img(image)
+            x.append(vec)
+    print("Saving to file...")
+    x = np.asarray(x)
+    y = np.concatenate(y)
+    np.save("data/X", x)
+    np.save("data/y", y)
+    print("Done!")
+    return
