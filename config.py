@@ -26,7 +26,8 @@ class Config(object):
     img_h = 66
     img_d = 3
     num_frames = 4
-    inp_shape = (None, img_h, img_w, img_d*num_frames)
+    inp_shape = (None, img_h, img_w, img_d)
+    r_inp_shape = (None, img_h, img_w, img_d*num_frames)
     save_freq = 1000
     sum_dir = './summaries/'
     is_training = True
