@@ -48,6 +48,7 @@ def create_graph(keep_prob=conf.keep_prob):
         # with actor.as_graph_def():
         with tf.variable_scope("actor_input"):
             state_inp = tf.placeholder(tf.float32, shape=conf.inp_shape, name="actor_state_input")
+            reinforcement_inp = tf.placeholder(tf.float32, shape=conf.r_inp_shape, name="reinforcement_inp")
             supervised_act = tf.placeholder(tf.float32, shape=[None, conf.OUTPUT_SIZE], name="supervised_action")
             actor_action = tf.placeholder(tf.float32, shape=[None, conf.OUTPUT_SIZE], name="actor_action_ph")
             yj = tf.placeholder(tf.float32, shape=[None], name="yj")
@@ -55,6 +56,11 @@ def create_graph(keep_prob=conf.keep_prob):
             a_w1 = tf.get_variable(name="act_W1", shape=[5, 5, 3, 24],
                                    initializer=tf.contrib.layers.xavier_initializer())
             a_b1 = tf.get_variable(name="act_b1", shape=[24], initializer=tf.zeros_initializer)
+
+            r_w1 = tf.get_variable(name="r_W1", shape=[5, 5, 12, 24],
+                                   initializer=tf.contrib.layers.xavier_initializer())
+            r_b1 = tf.get_variable(name="r_b1", shape=[24], initializer=tf.zeros_initializer)
+
             a_w2 = tf.get_variable(name='act_W2', shape=[5, 5, 24, 36],
                                    initializer=tf.contrib.layers.xavier_initializer())
             a_b2 = tf.get_variable(name='act_b2', shape=[36], initializer=tf.zeros_initializer)
@@ -92,7 +98,10 @@ def create_graph(keep_prob=conf.keep_prob):
             a_b_fc5 = tf.get_variable(name="act_b_fc5", shape=[conf.OUTPUT_SIZE], initializer=tf.zeros_initializer)
         with tf.variable_scope("actor_conv_layers"):
             inp_batchnorm = tf.contrib.layers.batch_norm(state_inp, center=True, scale=True, is_training=True)
-            conv1 = tf.nn.relu(tf.nn.conv2d(inp_batchnorm, a_w1, strides=[1, 2, 2, 1], padding='VALID') + a_b1)
+            if args.supervised:
+                conv1 = tf.nn.relu(tf.nn.conv2d(inp_batchnorm, a_w1, strides=[1, 2, 2, 1], padding='VALID') + a_b1)
+            else:
+                conv1 = tf.nn.relu(tf.nn.conv2d(inp_batchnorm, r_w1, strides=[1, 2, 2, 1], padding='VALID') + r_b1)
             conv2 = tf.nn.relu(tf.nn.conv2d(conv1, a_w2, strides=[1, 2, 2, 1], padding='VALID') + a_b2)
             conv3 = tf.nn.relu(tf.nn.conv2d(conv2, a_w3, strides=[1, 2, 2, 1], padding='VALID') + a_b3)
             conv4 = tf.nn.relu(tf.nn.conv2d(conv3, a_w4, strides=[1, 1, 1, 1], padding='VALID') + a_b4)
@@ -109,7 +118,7 @@ def create_graph(keep_prob=conf.keep_prob):
             fc4 = tf.nn.dropout(fc4, keep_prob=keep_prob)
         with tf.name_scope("actor_predictions"):
             out = tf.nn.softsign(tf.matmul(fc4, a_w_fc5) + a_b_fc5, name="actor_output")
-            supervised_loss = tf.sqrt(tf.reduce_sum(tf.square(out - supervised_act), axis=-1))
+            supervised_loss = tf.sqrt(tf.reduce_sum(tf.square(out - supervised_act)))
             action = tf.reduce_sum(tf.multiply(out, actor_action), axis=1)
             tf.summary.histogram('outputs', out)
             tf.summary.scalar('action', action)
@@ -122,6 +131,7 @@ def create_graph(keep_prob=conf.keep_prob):
             optim_reinforcement = tf.train.AdamOptimizer().minimize(loss)
     actor_nodes = {"state_inp": state_inp,
                    "action_inp": actor_action,
+                   "r_inp": reinforcement_inp,
                    "yj": yj,
                    "out": out,
                    "action": action,
