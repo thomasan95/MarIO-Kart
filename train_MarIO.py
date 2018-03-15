@@ -117,9 +117,9 @@ def create_graph(keep_prob=conf.keep_prob):
             fc4 = tf.nn.relu(tf.matmul(fc3, a_w_fc4) + a_b_fc4)
             fc4 = tf.nn.dropout(fc4, keep_prob=keep_prob)
         with tf.name_scope("actor_predictions"):
-            out = tf.nn.softsign(tf.matmul(fc4, a_w_fc5) + a_b_fc5, name="actor_output")
+            out = tf.nn.softsign(tf.matmul(fc4, a_w_fc5), name="actor_output")
             supervised_loss = tf.sqrt(tf.reduce_sum(tf.square(out - supervised_act), axis=-1))
-            action = tf.reduce_sum(tf.multiply(out, actor_action), axis=1)
+            action = tf.reduce_sum(tf.multiply(out, actor_action))
             tf.summary.histogram('outputs', out)
             tf.summary.scalar('action', action)
             tf.summary.scalar('supervised_loss', supervised_loss)
@@ -174,9 +174,11 @@ def supervised_train(nodes):
         train_writer = tf.summary.FileWriter(conf.sum_dir + './train/', sess.graph)
         train_iter = 0
         for epoch in range(1, conf.epochs + 1):
+            mean_loss = 0
             print("\nEpoch %d\n" % epoch)
             train_loss, val_loss = 0, 0
             indexes = np.arange(len(x_list))
+            mean_loss = 0
             if conf.shuffle:
                 np.random.shuffle(indexes)
             for num, file_i in enumerate(indexes):
@@ -197,10 +199,10 @@ def supervised_train(nodes):
                     num_batches = len(x_train) // batch_size
                     val_size = len(x_val) // batch_size
                 for batch_i, (x_input, y_input) in enumerate(utils.get_batches(x_train, y_train, batch_size)):
-                    loss, _, out = sess.run([nodes["s_loss"], nodes["optim_s"], nodes["out"]],
+                    loss, out, _ = sess.run([nodes["s_loss"], nodes["out"], nodes["optim_s"]],
                                             feed_dict={nodes["state_inp"]: x_input,
                                                        nodes["s_action"]: y_input})
-                    mean_loss = float(np.mean(loss))
+                    mean_loss += np.mean(loss)
                     train_loss += mean_loss
                     train_iter += 1
                     if train_iter % 50 == 0:
@@ -210,7 +212,8 @@ def supervised_train(nodes):
                         print("[%.4f, %.4f, %.4f, %.4f, %.4f]" % (float(diff[0]), float(diff[1]), float(diff[2]),
                                                                   float(diff[3]), float(diff[4])))
                         print("Done with %d iterations of %d training samples:\tCurr Loss: %f" %
-                              (train_iter, batch_i*batch_size + batch_size, mean_loss))
+                              (train_iter, batch_i*batch_size + batch_size, mean_loss/50))
+                        mean_loss = 0
                     if train_iter % conf.save_freq == 0:
                         saver.save(sess, conf.save_dir + conf.save_name)
                 if len(x_val) < batch_size:
