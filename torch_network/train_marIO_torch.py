@@ -33,6 +33,7 @@ group.add_argument("-dqn", "--reinforcement", action='store_true', help="reinfor
 parser.add_argument("-r", "--resume", action="store_true", help="resume training. Specify file path in config.py")
 args = parser.parse_args()
 
+gpu = torch.cuda.is_available()
 
 def supervised_train(model, criterion, optimizer):
     """
@@ -94,10 +95,10 @@ def supervised_train(model, criterion, optimizer):
                 if train_iter % conf.save_freq == 0:
                     if not os.path.isdir(config.save_dir):
                         os.mkdir(config.save_dir)
-                    torch.save({'epoch': epoch, 
-                                'state_dict': model.state_dict(),
-                                'optimizer': optimizer.state_dict()},
-                                 config.checkpoint)
+                    utils.save_checkpoint({'epoch': epoch, 
+                                           'state_dict': model.state_dict(),
+                                           'optimizer': optimizer.state_dict()},
+                                            config.checkpoint)
 
             # Validation check
             if len(x_val) < batch_size:
@@ -117,7 +118,7 @@ def supervised_train(model, criterion, optimizer):
     return losses
 
 
-def deep_q_train(nodes):
+def deep_q_train(model):
     """
     Main training loop to train the graph
     :param nodes: Nodes for the graph so that the Tensorflow network can run
@@ -126,74 +127,71 @@ def deep_q_train(nodes):
     """
     print("\nReinforcement Learning\n")
     env = gym.make('Mario-Kart-Royal-Raceway-v0')
-    with tf.Session() as sess:
-        saver = tf.train.Saver()
-        # Initialize all variables such as Q inside network
-        sess.run(tf.global_variables_initializer())
-        train_writer = tf.summary.FileWriter(conf.sum_dir + './train/', sess.graph)
-        # Initialize memory to some capacity
-        memory = deque(maxlen=conf.replay_memory)
-        epsilon = conf.initial_epsilon
 
-        for episode in range(1, conf.max_episodes):
-            still_in_episode = True
-            # Will replace with samples from the initial game screen
-            # Want to send in 4 screens at a time to process, so stack along depth of image
-            input_tensor = env.reset()
-            input_tensor = utils.resize_img(input_tensor)
-            inp = np.dstack((input_tensor, input_tensor, input_tensor, input_tensor))
-            time_step = 0
-            while still_in_episode:
-                # Grab actions from first state
-                action_input = np.zeros([conf.OUTPUT_SIZE])
-                state = np.expand_dims(inp, axis=0)
-                out_t = sess.run(nodes["out"], feed_dict={nodes["state_inp"]: state})[0]
-                # Perform random explore action or else grab maximum output
-                if random.random() <= epsilon:
-                    act_indx = random.randrange(conf.OUTPUT_SIZE)
-                else:
-                    act_indx = np.argmax(out_t)
-                action_input[act_indx] = 1
-                # Randomness factor
-                if epsilon > conf.final_epsilon:
-                    epsilon *= conf.epsilon_decay
-                # Observe next reward from action
-                observation, reward, end_episode, info = env.step(action_input)
-                # Finish rest of the pipeline for this time step, but proceed to the next episode after
-                obs = utils.resize_img(observation)
-                if end_episode:
-                    still_in_episode = False
-                env.render()
-                obs = np.expand_dims(obs, axis=0)
-                new_state = np.zeros(state.shape)
-                new_state[:, :, :, :3] = obs
-                new_state[:, :, :, 3:] = state[:, :, :, :9]
-                # Add to memory
-                memory.append((state, action_input, reward, new_state))
+    # Initialize memory to some capacity
+    memory = deque(maxlen=conf.replay_memory)
+    epsilon = conf.initial_epsilon
 
-                if time_step > conf.start_memory_sample:
-                    batch = random.sample(memory, conf.batch_size)
-                    mem_state = [mem[0] for mem in batch]
-                    mem_action = [mem[1] for mem in batch]
-                    mem_reward = [mem[2] for mem in batch]
-                    mem_next_state = [mem[3] for mem in batch]
+    for episode in range(1, conf.max_episodes):
+        end_episode = False
+        # Will replace with samples from the initial game screen
+        # Want to send in 4 screens at a time to process, so stack along depth of image
+        input_tensor = env.reset()
+        input_tensor = utils.resize_img(input_tensor)
+        inp = np.dstack((input_tensor, input_tensor, input_tensor, input_tensor))
+        time_step = 0
+        while not end_episode:
+            # Grab actions from first state
+            action_input = np.zeros([conf.OUTPUT_SIZE])
+            state = np.expand_dims(inp, axis=0)
+            output = model(state)
+            # Perform random explore action or else grab maximum output
+            if random.random() <= epsilon:
+                act_indx = random.randrange(conf.OUTPUT_SIZE)
+            else:
+                act_indx = output.data.cpu().numpy()
+            action_input[act_indx] = 1
 
-                    yj = []
-                    mem_out = sess.run(nodes["out"], feed_dict={nodes["state_inp"]: mem_next_state})
-                    for i in range(0, len(batch)):
-                        yj.append(mem_reward[i] + conf.learning_rate*np.max(mem_out[i]))
+            # Randomness factor
+            if epsilon > conf.final_epsilon:
+                epsilon *= conf.epsilon_decay
 
-                    # Perform gradient descent on the loss function with respect to the yj and predicted output
-                    _ = sess.run(nodes["optim_r"], feed_dict={nodes["yj"]: yj,
-                                                              nodes["action_inp"]: mem_action,
-                                                              nodes["state_inp"]: mem_state})
-                state = new_state
-                time_step += 1
-                if time_step % conf.save_freq == 0:
-                    saver.save(sess, conf.save_dir + conf.save_name, global_step=time_step)
-                if time_step % 100 == 0:
-                    print("Episode: %d, Time Step: %d, Reward: %d" % (episode, time_step, reward))
-            train_writer.close()
+            # Observe next reward from action
+            observation, reward, end_episode, info = env.step(action_input)
+            # Finish rest of the pipeline for this time step, but proceed to the next episode after
+            obs = utils.resize_img(observation)
+            env.render()
+            obs = np.expand_dims(obs, axis=0)
+            new_state = np.zeros(state.shape)
+            new_state[:, :, :, :3] = obs
+            new_state[:, :, :, 3:] = state[:, :, :, :9]
+            # Add to memory
+            memory.append((state, action_input, reward, new_state))
+
+            
+            if time_step > conf.start_memory_sample:
+                batch = random.sample(memory, conf.batch_size)
+                mem_state = [mem[0] for mem in batch]
+                mem_action = [mem[1] for mem in batch]
+                mem_reward = [mem[2] for mem in batch]
+                mem_next_state = [mem[3] for mem in batch]
+
+                yj = []
+                mem_out = sess.run(nodes["out"], feed_dict={nodes["state_inp"]: mem_next_state})
+                for i in range(0, len(batch)):
+                    yj.append(mem_reward[i] + conf.learning_rate*np.max(mem_out[i]))
+
+                # Perform gradient descent on the loss function with respect to the yj and predicted output
+                _ = sess.run(nodes["optim_r"], feed_dict={nodes["yj"]: yj,
+                                                          nodes["action_inp"]: mem_action,
+                                                          nodes["state_inp"]: mem_state})
+            state = new_state
+            time_step += 1
+            if time_step % conf.save_freq == 0:
+                saver.save(sess, conf.save_dir + conf.save_name, global_step=time_step)
+            if time_step % 100 == 0:
+                print("Episode: %d, Time Step: %d, Reward: %d" % (episode, time_step, reward))
+
 
 
 def policy_gradient_train(nodes):
@@ -227,6 +225,8 @@ def policy_gradient_train(nodes):
 
 def main():
     # graph, inp, max_action, optimal_action, out, action, loss, optimizer = create_graph()
+    model = CNN()
+    optimizer = optim.Adam(model.parameters(), lr=args.learning_rate)
 
     if conf.is_training:
         if args.supervised:
@@ -235,7 +235,8 @@ def main():
             criterion = torch.nn.MSELoss() 
             losses = supervised_train(model, criterion, optimizer)
         elif args.reinforcement:
-            deep_q_train(nodes)
+            model, optimizer, _, losses = utils.resume_checkpoint(model,optimizer,gpu,config.checkpoint)
+            deep_q_train(model)
 
 
 if __name__ == "__main__":

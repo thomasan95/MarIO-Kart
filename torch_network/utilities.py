@@ -191,3 +191,37 @@ def prepare(path):
 if __name__ == "__main__":
     if sys.argv[1] == 'prepare':
         prepare(sys.argv[2])
+
+def save_checkpoint(state, filename='/saves/checkpoint.pth.tar'):
+    """Save checkpoint if a new best is achieved"""
+    assert isinstance(state, dict)
+    assert isinstance(file_name, str)
+    torch.save(state, filename)  # save checkpoint
+
+def resume_checkpoint(model, optimizer, gpu, filepath='./saves/checkpoint.pth.tar'):
+    '''
+    Loads the the saved PyTorch model at the specified location
+
+    :param model: Initialized model
+    :type model: PyTorch model
+    :param optimizer: Optimizer to resume state dict
+    :type optimizer: torch.optim
+    :param filepath: location of where model is saved
+    :param gpu: boolean for whether to load as gpu model or cpu model
+    :type gpu: bool
+    :type filepath: str
+    :return: saved PyTorch model
+    :rtype: PyTorch model
+    '''
+    assert isinstance(filepath, str)
+
+    if gpu:
+        f = torch.load(filepath)
+    else:
+        f = torch.load(filepath, map_location=lambda storage, loc: storage)
+    epoch = f['epoch']
+    losses = f['losses']
+
+    model.load_state_dict(f['state_dict'])
+    optimizer.load_state_dict(f['optimizer'])
+    return model, optimizer, epoch, losses
