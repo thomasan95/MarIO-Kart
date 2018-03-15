@@ -1,9 +1,9 @@
-from CNN import CNN
+from CNN import Net
 import utilities as utils
 import config
 
-import gym
-import gym_mupen64plus
+#import gym
+#import gym_mupen64plus
 import torch
 import torchvision
 import torchvision.transforms as transforms
@@ -21,8 +21,7 @@ import os
 
 
    
-print("Using TensorFlow version: " + str(tf.__version__))
-print("This code was developed in version: 1.6.0")
+
 
 # Load Configs
 conf = config.Config()
@@ -31,6 +30,7 @@ group = parser.add_mutually_exclusive_group(required=True)
 group.add_argument("-s", "--supervised", action='store_true', help="supervised training")
 group.add_argument("-dqn", "--reinforcement", action='store_true', help="reinforcement learning")
 parser.add_argument("-r", "--resume", action="store_true", help="resume training. Specify file path in config.py")
+parser.add_argument("-lr", "--learning_rate", type=float, default=0.001, help="Specify learning rate of the network")
 args = parser.parse_args()
 
 
@@ -84,6 +84,11 @@ def supervised_train(model, criterion, optimizer):
                 num_batches = len(x_train) // batch_size
                 val_size = len(x_val) // batch_size
             for batch_i, (x_input, y_input) in enumerate(utils.get_batches(x_train, y_train, batch_size)):
+                
+                x_input = np.swapaxes(x_input,1,3)
+                print np.shape(x_input)
+                x_input,y_input = torch.from_numpy(x_input).float(),torch.from_numpy(y_input).float()
+                x_input,y_input = Variable(x_input),Variable(y_input)
                 output = model(x_input)
                 loss = criterion(output,y_input)
                 train_loss += loss
@@ -104,6 +109,10 @@ def supervised_train(model, criterion, optimizer):
                 batch_size = len(x_val)
 
             for val_i, (val_x_inp, val_y_inp) in enumerate(utils.get_batches(x_val, y_val, batch_size)):
+                val_x_inp = np.swapaxes(val_x_inp,1,3)
+                print np.shape(val_x_inp)
+                val_x_inp,val_y_inp = torch.from_numpy(val_x_inp).float(),torch.from_numpy(val_y_inp).float()
+                val_x_inp,val_y_inp = Variable(val_x_inp),Variable(val_y_inp)
                 output = model(val_x_inp)
                 loss = criterion(output,val_y_inp)
                 val_loss += loss
@@ -230,7 +239,7 @@ def main():
 
     if conf.is_training:
         if args.supervised:
-            model = CNN()
+            model = Net()
             optimizer = optim.Adam(model.parameters(), lr=args.learning_rate)
             criterion = torch.nn.MSELoss() 
             losses = supervised_train(model, criterion, optimizer)
