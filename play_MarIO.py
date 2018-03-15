@@ -24,8 +24,8 @@ class Actor(object):
         manual_override = self.real_controller.LeftBumper == 1
         if not manual_override:
             # Look
-            # vec = resize_img(obs)
-            vec = np.expand_dims(obs, axis=0)  # expand dimensions for predict, it wants (1,66,200,3) not (66, 200, 3)
+            vec = resize_img(obs)
+            vec = np.expand_dims(vec, axis=0)  # expand dimensions for predict, it wants (1,66,200,3) not (66, 200, 3)
             # Think
             out = self.sess.run(self.model["out"], feed_dict={self.model["state_inp"]: vec})
             joystick = out[0]
@@ -50,6 +50,7 @@ class Actor(object):
 if __name__ == "__main__":
     env = gym.make('Mario-Kart-Royal-Raceway-v0')
     state = env.reset()
+    # state = utils.resize_img(state)
     env.render()
     print('env ready!')
     with tf.Session() as s:
@@ -60,19 +61,19 @@ if __name__ == "__main__":
         end_episode = False
         first = True
         while not end_episode:
-            if first:
-                state = utils.resize_img(state)
-                state = np.dstack((state, state, state, state))
-                first = False
-            else:
-                state[:, :, :3] = observation
+            # if first:
+            #     state = utils.resize_img(state)
+            #     state = np.dstack((state, state, state, state))
+            #     first = False
+            # else:
+            #     state[:, :, :3] = observation
             action = actor.get_action(state)
-            observation, reward, end_episode, info = env.step(action)
-            observation = utils.resize_img(observation)
+            state, reward, end_episode, info = env.step(action)
+            # state = utils.resize_img(state)
             env.render()
             total_reward += reward
         print('end episode... total reward: ' + str(total_reward))
-        observation = env.reset()
+        state = env.reset()
         print('env ready!')
         input('press <ENTER> to quit')
         env.close()
