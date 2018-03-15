@@ -197,12 +197,18 @@ def supervised_train(nodes):
                     num_batches = len(x_train) // batch_size
                     val_size = len(x_val) // batch_size
                 for batch_i, (x_input, y_input) in enumerate(utils.get_batches(x_train, y_train, batch_size)):
-                    loss, _ = sess.run([nodes["s_loss"], nodes["optim_s"]], feed_dict={nodes["state_inp"]: x_input,
-                                                                                       nodes["s_action"]: y_input})
+                    loss, _, out = sess.run([nodes["s_loss"], nodes["optim_s"], nodes["out"]],
+                                            feed_dict={nodes["state_inp"]: x_input,
+                                                       nodes["s_action"]: y_input})
                     mean_loss = float(np.mean(loss))
                     train_loss += mean_loss
                     train_iter += 1
-                    if train_iter % 10 == 0:
+                    if train_iter % 50 == 0:
+                        samp_out, samp_true = out[0], y_input[0]
+                        diff = np.absolute(samp_out - samp_true)
+                        print("Difference between out and true: ")
+                        print("[%.4f, %.4f, %.4f, %.4f, %.4f]" % (float(diff[0]), float(diff[1]), float(diff[2]),
+                                                                  float(diff[3]), float(diff[4])))
                         print("Done with %d iterations of %d training samples:\tCurr Loss: %f" %
                               (train_iter, batch_i*batch_size + batch_size, mean_loss))
                     if train_iter % conf.save_freq == 0:
