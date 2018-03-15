@@ -118,7 +118,7 @@ def create_graph(keep_prob=conf.keep_prob):
             fc4 = tf.nn.dropout(fc4, keep_prob=keep_prob)
         with tf.name_scope("actor_predictions"):
             out = tf.nn.softsign(tf.matmul(fc4, a_w_fc5) + a_b_fc5, name="actor_output")
-            supervised_loss = tf.sqrt(tf.reduce_sum(tf.square(out - supervised_act)))
+            supervised_loss = tf.sqrt(tf.reduce_sum(tf.square(out - supervised_act), axis=-1))
             action = tf.reduce_sum(tf.multiply(out, actor_action), axis=1)
             tf.summary.histogram('outputs', out)
             tf.summary.scalar('action', action)
