@@ -6,6 +6,7 @@ import threading
 import numpy as np
 from skimage.io import imread
 import sys
+import os
 conf = config.Config()
 
 
@@ -153,17 +154,20 @@ def load_sample(sample):
     return image_files, joystick_values
 
 
-def prepare(samples):
+def prepare(path):
     """
     Processes data into .npy files so the network can train on them
 
-    :param samples: all folders to be read from
-    :type samples: list
+    :param path: directory with all the folders of data
+    :type path: str
     :return: None
     """
+    if not(path[-1] == '/'):
+        path += '/'
     print("Preparing data")
     x = []
     y = []
+    samples = [os.path.join(path, o) for o in os.listdir(path) if os.path.isdir(os.path.join(path, o))]
     for sample in samples:
         print(sample)
         # load sample
@@ -186,4 +190,4 @@ def prepare(samples):
 
 if __name__ == "__main__":
     if sys.argv[1] == 'prepare':
-        prepare(sys.argv[2:])
+        prepare(sys.argv[2])
