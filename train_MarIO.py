@@ -97,10 +97,11 @@ def create_graph(keep_prob=conf.keep_prob):
                                       initializer=tf.contrib.layers.xavier_initializer())
             a_b_fc5 = tf.get_variable(name="act_b_fc5", shape=[conf.OUTPUT_SIZE], initializer=tf.zeros_initializer)
         with tf.variable_scope("actor_conv_layers"):
-            # inp_batchnorm = tf.contrib.layers.batch_norm(state_inp, center=True, scale=True, is_training=True)
             if args.supervised:
+                inp_batchnorm = tf.contrib.layers.batch_norm(state_inp, center=True, scale=True, is_training=True)
                 conv1 = tf.nn.relu(tf.nn.conv2d(state_inp, a_w1, strides=[1, 2, 2, 1], padding='VALID') + a_b1)
             else:
+                inp_batchnorm = tf.contrib.layers.batch_norm(reinforcement_inp, center=True, scale=True, is_training=True)
                 conv1 = tf.nn.relu(tf.nn.conv2d(reinforcement_inp, r_w1, strides=[1, 2, 2, 1], padding='VALID') + r_b1)
             conv2 = tf.nn.relu(tf.nn.conv2d(conv1, a_w2, strides=[1, 2, 2, 1], padding='VALID') + a_b2)
             conv3 = tf.nn.relu(tf.nn.conv2d(conv2, a_w3, strides=[1, 2, 2, 1], padding='VALID') + a_b3)
@@ -117,7 +118,7 @@ def create_graph(keep_prob=conf.keep_prob):
             fc4 = tf.nn.relu(tf.matmul(fc3, a_w_fc4) + a_b_fc4)
             fc4 = tf.nn.dropout(fc4, keep_prob=keep_prob)
         with tf.name_scope("actor_predictions"):
-            out = tf.nn.softsign(tf.matmul(fc4, a_w_fc5), name="actor_output")
+            out = tf.nn.softsign(tf.matmul(fc4, a_w_fc5) + a_b_fc5, name="actor_output")
             supervised_loss = tf.sqrt(tf.reduce_sum(tf.square(out - supervised_act), axis=-1))
             action = tf.reduce_sum(tf.multiply(out, actor_action))
             tf.summary.histogram('outputs', out)
@@ -202,6 +203,7 @@ def supervised_train(nodes):
                     loss, out, _ = sess.run([nodes["s_loss"], nodes["out"], nodes["optim_s"]],
                                             feed_dict={nodes["state_inp"]: x_input,
                                                        nodes["s_action"]: y_input})
+                    print("[%.4f, %.4f, %.4f, %.4f, %.4f]" % (out[0,0], out[0,1], out[0,2], out[0,3], out[0,4]))
                     mean_loss += np.mean(loss)
                     train_loss += mean_loss
                     train_iter += 1
