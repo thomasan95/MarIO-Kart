@@ -97,11 +97,11 @@ def create_graph(keep_prob=conf.keep_prob):
                                       initializer=tf.contrib.layers.xavier_initializer())
             a_b_fc5 = tf.get_variable(name="act_b_fc5", shape=[conf.OUTPUT_SIZE], initializer=tf.zeros_initializer)
         with tf.variable_scope("actor_conv_layers"):
-            inp_batchnorm = tf.contrib.layers.batch_norm(state_inp, center=True, scale=True, is_training=True)
+            # inp_batchnorm = tf.contrib.layers.batch_norm(state_inp, center=True, scale=True, is_training=True)
             if args.supervised:
-                conv1 = tf.nn.relu(tf.nn.conv2d(inp_batchnorm, a_w1, strides=[1, 2, 2, 1], padding='VALID') + a_b1)
+                conv1 = tf.nn.relu(tf.nn.conv2d(state_inp, a_w1, strides=[1, 2, 2, 1], padding='VALID') + a_b1)
             else:
-                conv1 = tf.nn.relu(tf.nn.conv2d(inp_batchnorm, r_w1, strides=[1, 2, 2, 1], padding='VALID') + r_b1)
+                conv1 = tf.nn.relu(tf.nn.conv2d(reinforcement_inp, r_w1, strides=[1, 2, 2, 1], padding='VALID') + r_b1)
             conv2 = tf.nn.relu(tf.nn.conv2d(conv1, a_w2, strides=[1, 2, 2, 1], padding='VALID') + a_b2)
             conv3 = tf.nn.relu(tf.nn.conv2d(conv2, a_w3, strides=[1, 2, 2, 1], padding='VALID') + a_b3)
             conv4 = tf.nn.relu(tf.nn.conv2d(conv3, a_w4, strides=[1, 1, 1, 1], padding='VALID') + a_b4)
