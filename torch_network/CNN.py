@@ -7,7 +7,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
-class CNN(nn.Module):
+class Net(nn.Module):
 
     """
     Instantiate the graph. We create a placeholder to feed into the network which is then
@@ -41,7 +41,7 @@ class CNN(nn.Module):
         self.fc2 = nn.Linear(1164, 100,bias=True)
         self.fc3 = nn.Linear(100, 50,bias=True)
         self.fc4 = nn.Linear(50, 10,bias=True)
-        self.fc5 = nn.Linear(10,6,bias=True)
+        self.fc5 = nn.Linear(10,5,bias=True)
         
 
     def forward(self, x):
@@ -57,5 +57,5 @@ class CNN(nn.Module):
         x = F.relu(self.fc3(x))
         x = F.relu(self.fc4(x))
         x = F.relu(self.fc5(x))
-        x = self.fc3(x)
+        
         return x
