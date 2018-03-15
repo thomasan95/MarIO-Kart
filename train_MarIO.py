@@ -199,10 +199,11 @@ def supervised_train(nodes):
                 for batch_i, (x_input, y_input) in enumerate(utils.get_batches(x_train, y_train, batch_size)):
                     loss, _ = sess.run([nodes["s_loss"], nodes["optim_s"]], feed_dict={nodes["state_inp"]: x_input,
                                                                                        nodes["s_action"]: y_input})
-                    train_loss += loss
+                    mean_loss = np.mean(loss)
+                    train_loss += mean_loss
                     train_iter += 1
                     if train_iter % 50 == 0:
-                        print("Done with %d iterations of training:\tCurr Loss: %f" % (train_iter, loss))
+                        print("Done with %d iterations of training:\tCurr Loss: %f" % (train_iter, mean_loss))
                     if train_iter % conf.save_freq == 0:
                         saver.save(sess, conf.save_dir + conf.save_name)
                 if len(x_val) < batch_size:
@@ -210,7 +211,8 @@ def supervised_train(nodes):
                 for val_i, (val_x_inp, val_y_inp) in enumerate(utils.get_batches(x_val, y_val, batch_size)):
                     loss = sess.run(nodes["s_loss"], feed_dict={nodes["state_inp"]: val_x_inp,
                                                                 nodes["s_action"]: val_y_inp})
-                    val_loss += loss
+                    mean_loss = np.mean(loss)
+                    val_loss += mean_loss
                 # Append losses to generate plots in the future
                 losses["train"].append(train_loss/num_batches)
                 losses["valid"].append(val_loss/val_size)
