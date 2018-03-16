@@ -279,7 +279,8 @@ def deep_q_train(nodes):
             input_tensor = utils.resize_img(input_tensor)
             inp = np.dstack((input_tensor, input_tensor, input_tensor, input_tensor))
             time_step = 0
-            while still_in_episode:
+            end_episode = False
+            while not end_episode:
                 # Grab actions from first state
                 action = np.zeros([conf.OUTPUT_SIZE])
                 state = np.expand_dims(inp, axis=0)
@@ -309,8 +310,6 @@ def deep_q_train(nodes):
                 observation, reward, end_episode, _ = env.step(action_input)
                 # Finish rest of the pipeline for this time step, but proceed to the next episode after
                 obs = utils.resize_img(observation)
-                if end_episode:
-                    still_in_episode = False
                 env.render()
                 obs = np.expand_dims(obs, axis=0)
                 new_state = np.zeros(state.shape)
