@@ -77,11 +77,10 @@ if __name__ == "__main__":
                 state = utils.resize_img(state)
                 state = np.dstack((state, state, state, state))
                 first = False
-            else:
-                state[:, :, :3] = observation
             action = actor.get_action(state)
-            state, reward, end_episode, info = env.step(action)
-            state = utils.resize_img(state)
+            obs, reward, end_episode, info = env.step(action)
+            obs = utils.resize_img(obs)
+            state[:, :, :3] = obs
             env.render()
             total_reward += reward
         print('end episode... total reward: ' + str(total_reward))
