@@ -56,11 +56,14 @@ def create_graph(keep_prob=conf.keep_prob):
             a_w1 = tf.get_variable(name="act_W1", shape=[5, 5, 3, 24],
                                    initializer=tf.contrib.layers.xavier_initializer())
             a_b1 = tf.get_variable(name="act_b1", shape=[24], initializer=tf.zeros_initializer)
-
-            r_w1 = tf.get_variable(name="r_W1", shape=[5, 5, 12, 24],
-                                   initializer=tf.contrib.layers.xavier_initializer())
-            r_b1 = tf.get_variable(name="r_b1", shape=[24], initializer=tf.zeros_initializer)
-
+            if conf.resume_training:
+                # Attempt to stack first set of filters as the filters for 3 dim to 12 dim
+                r_w1 = tf.stack(a_w1, axis=2, name="r_W1")
+                r_b1 = tf.assign(a_b1, name="r_b1")
+            else:
+                r_w1 = tf.get_variable(name="r_W1", shape=[5, 5, 12, 24],
+                                       initializer=tf.contrib.layers.xavier_initializer())
+                r_b1 = tf.get_variable(name="r_b1", shape=[24], initializer=tf.zeros_initializer)
             a_w2 = tf.get_variable(name='act_W2', shape=[5, 5, 24, 36],
                                    initializer=tf.contrib.layers.xavier_initializer())
             a_b2 = tf.get_variable(name='act_b2', shape=[36], initializer=tf.zeros_initializer)
@@ -169,13 +172,12 @@ def supervised_train(nodes):
     with tf.Session() as sess:
         saver = tf.train.Saver()
         if args.resume:
-            saver.restore(sess, conf.save_dir + conf.save_name)
+            saver.restore(sess, conf.save_dir + conf.save_name_supervised)
         else:
             sess.run(tf.global_variables_initializer())
         train_writer = tf.summary.FileWriter(conf.sum_dir + './train/', sess.graph)
         train_iter = 0
         for epoch in range(1, conf.epochs + 1):
-            mean_loss = 0
             print("\nEpoch %d\n" % epoch)
             train_loss, val_loss = 0, 0
             indexes = np.arange(len(x_list))
@@ -203,7 +205,10 @@ def supervised_train(nodes):
                     loss, out, _ = sess.run([nodes["s_loss"], nodes["out"], nodes["optim_s"]],
                                             feed_dict={nodes["state_inp"]: x_input,
                                                        nodes["s_action"]: y_input})
+
                     # print("[%.4f, %.4f, %.4f, %.4f, %.4f]" % (out[0,0], out[0,1], out[0,2], out[0,3], out[0,4]))
+
+                    # print("[%.4f, %.4f, %.4f, %.4f, %.4f]" % (out[0, 0], out[0, 1], out[0, 2], out[0, 3], out[0, 4]))
                     mean_loss += np.mean(loss)
                     train_loss += mean_loss
                     train_iter += 1
@@ -217,7 +222,7 @@ def supervised_train(nodes):
                               (train_iter, batch_i*batch_size + batch_size, mean_loss/50))
                         mean_loss = 0
                     if train_iter % conf.save_freq == 0:
-                        saver.save(sess, conf.save_dir + conf.save_name)
+                        saver.save(sess, conf.save_dir + conf.save_name_supervised)
                 if len(x_val) < batch_size:
                     batch_size = len(x_val)
                 for val_i, (val_x_inp, val_y_inp) in enumerate(utils.get_batches(x_val, y_val, batch_size)):
@@ -247,12 +252,25 @@ def deep_q_train(nodes):
     with tf.Session() as sess:
         saver = tf.train.Saver()
         # Initialize all variables such as Q inside network
-        sess.run(tf.global_variables_initializer())
+        if conf.resume_training:
+            if conf.first_reinforcement:
+                saver.restore(sess, conf.save_dir + conf.save_name_supervised)
+            else:
+                saver.restore(sess, conf.save_dir + conf.save_name_reinforcement)
+            if os.path.isdir('./pickles/epsilon.p'):
+                epsilon = pkl.load(open('./pickles/epsilon.p'))
+            else:
+                epsilon = conf.initial_epsilon/5
+            if os.path.isdir('./pickles/memory.p'):
+                memory = pkl.load(open('./pickles/memory.p'))
+            else:
+                memory = deque(maxlen=conf.replay_memory)
+        else:
+            sess.run(tf.global_variables_initializer())
+            epsilon = conf.initial_epsilon
+            memory = deque(maxlen=conf.replay_memory)
         train_writer = tf.summary.FileWriter(conf.sum_dir + './train/', sess.graph)
         # Initialize memory to some capacity
-        memory = deque(maxlen=conf.replay_memory)
-        epsilon = conf.initial_epsilon
-
         for episode in range(1, conf.max_episodes):
             still_in_episode = True
             # Will replace with samples from the initial game screen
@@ -308,7 +326,7 @@ def deep_q_train(nodes):
                 state = new_state
                 time_step += 1
                 if time_step % conf.save_freq == 0:
-                    saver.save(sess, conf.save_dir + conf.save_name, global_step=time_step)
+                    saver.save(sess, conf.save_dir + conf.save_name_reinforcement, global_step=time_step)
                 if time_step % 100 == 0:
                     print("Episode: %d, Time Step: %d, Reward: %d" % (episode, time_step, reward))
             train_writer.close()
@@ -319,7 +337,7 @@ def policy_gradient_train(nodes):
     with tf.Session() as sess:
         saver = tf.train.Saver()
         if conf.resume_training:
-            saver.restore(sess, conf.save_dir + conf.save_name)
+            saver.restore(sess, conf.save_dir + conf.save_name_supervised)
         else:
             sess.run(tf.global_variables_initializer())
         state = env.reset()

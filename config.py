@@ -4,7 +4,9 @@ class Config(object):
     """
     data_dir = './data/'
     save_dir = './saves/'
-    save_name = 'best_model'
+    save_name_supervised = 'best_model_supervised'
+    save_name_reinforcement = 'best_model_reinforcement'
+    first_reinforcement = True
     rom_dir = './ROM/'
     pickle_dir = './pickles/'
     checkpoint = './saves/actor/actor_model.ckpt'
@@ -37,7 +39,7 @@ class Config(object):
     initial_epsilon = 1.0
     epsilon_decay = 0.975
     final_epsilon = 0.05
-    replay_memory = 500000
+    replay_memory = 50000
     start_memory_sample = 50000
     max_episodes = 500000
     val_split = 0.1
