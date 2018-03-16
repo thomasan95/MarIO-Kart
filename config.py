@@ -39,7 +39,7 @@ class Config(object):
     if first_reinforcement:
         initial_epsilon = 0.9
     else:
-        initial_epsilon = 0.5
+        initial_epsilon = 0.15
     epsilon_decay = 0.975
     final_epsilon = 0.05
     replay_memory = 50000

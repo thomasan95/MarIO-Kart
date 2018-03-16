@@ -261,7 +261,7 @@ def deep_q_train(nodes):
             if os.path.isdir('./pickles/epsilon.p'):
                 epsilon = pkl.load(open('./pickles/epsilon.p'))
             else:
-                epsilon = conf.initial_epsilon/100
+                epsilon = conf.initial_epsilon
             if os.path.isdir('./pickles/memory.p'):
                 memory = pkl.load(open('./pickles/memory.p'))
             else:
@@ -271,7 +271,7 @@ def deep_q_train(nodes):
             epsilon = conf.initial_epsilon
             memory = deque(maxlen=conf.replay_memory)
         train_writer = tf.summary.FileWriter(conf.sum_dir + './train/', sess.graph)
-        # Initialize memory to some capacitysave_name_supervised
+        # Initialize memory to some capacity save_name_supervised
         for episode in range(1, conf.max_episodes):
             input_tensor = env.reset()
             input_tensor = utils.resize_img(input_tensor)
