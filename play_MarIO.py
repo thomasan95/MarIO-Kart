@@ -75,12 +75,12 @@ if __name__ == "__main__":
         first = True
         while not end_episode:
             if first:
-                state = utils.resize_img(state)
+                state = resize_img(state)
                 state = np.dstack((state, state, state, state))
                 first = False
             action = actor.get_action(state)
             obs, reward, end_episode, info = env.step(action)
-            obs = utils.resize_img(obs)
+            obs = resize_img(obs)
             state = np.dstack((obs, obs, obs, obs))
             # state[:, :, :3] = obs
             env.render()
