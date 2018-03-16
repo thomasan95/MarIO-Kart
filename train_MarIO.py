@@ -312,11 +312,12 @@ def deep_q_train(nodes):
                 # Finish rest of the pipeline for this time step, but proceed to the next episode after
                 obs = utils.resize_img(obs)
                 env.render()
-                # obs = np.expand_dims(obs, axis=0)
-                new_state = np.zeros(state.shape)
-                new_state[:, :, :, :6] = obs
-                new_state[:, :, :, 6:] = state[:, :, :, :6]
-                # new_state = np.dstack((obs, obs, obs, obs))
+                # temp = np.dstack((obs, obs, obs))
+                # temp = np.expand_dims(temp, axis=0)
+                # new_state = np.zeros(state.shape)
+                # new_state[:, :, :, :6] = temp
+                # new_state[:, :, :, 6:] = state[:, :, :, :6]
+                new_state = np.dstack((obs, obs, obs, obs))
                 # Add to memory
                 memory.append((state, action, reward, new_state))
 
