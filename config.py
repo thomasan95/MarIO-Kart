@@ -4,14 +4,14 @@ class Config(object):
     """
     data_dir = './data/'
     save_dir = './saves/'
-    save_name_supervised = 'best_model_supervised'
-    save_name_reinforcement = 'best_model_reinforcement'
+    save_name_supervised = 'supervised/best_model_supervised'
+    save_name_reinforcement = 'reinforcement/best_model_reinforcement'
     first_reinforcement = True
     rom_dir = './ROM/'
     pickle_dir = './pickles/'
     checkpoint = './saves/actor/actor_model.ckpt'
     learning_rate = 0.001
-    keep_prob = 0.8
+    keep_prob = 0.9
     decay_steps = 100000
     anneal_factor = 0.96
     OUTPUT_SIZE = 5
@@ -35,7 +35,7 @@ class Config(object):
     is_training = True
     epochs = 200
     batch_size = 50
-    resume_training = False
+    resume_training = True
     initial_epsilon = 1.0
     epsilon_decay = 0.975
     final_epsilon = 0.05
