@@ -172,7 +172,7 @@ def supervised_train(nodes):
     with tf.Session() as sess:
         saver = tf.train.Saver()
         if args.resume:
-            saver.restore(sess, conf.save_dir + conf.save_name)
+            saver.restore(sess, conf.save_dir + conf.save_name_supervised)
         else:
             sess.run(tf.global_variables_initializer())
         train_writer = tf.summary.FileWriter(conf.sum_dir + './train/', sess.graph)
@@ -219,7 +219,7 @@ def supervised_train(nodes):
                               (train_iter, batch_i*batch_size + batch_size, mean_loss/50))
                         mean_loss = 0
                     if train_iter % conf.save_freq == 0:
-                        saver.save(sess, conf.save_dir + conf.save_name)
+                        saver.save(sess, conf.save_dir + conf.save_name_supervised)
                 if len(x_val) < batch_size:
                     batch_size = len(x_val)
                 for val_i, (val_x_inp, val_y_inp) in enumerate(utils.get_batches(x_val, y_val, batch_size)):
@@ -250,7 +250,10 @@ def deep_q_train(nodes):
         saver = tf.train.Saver()
         # Initialize all variables such as Q inside network
         if conf.resume_training:
-            saver.restore(sess, conf.sum_dir + conf.save_name)
+            if conf.first_reinforcement:
+                saver.restore(sess, conf.save_dir + conf.save_name_supervised)
+            else:
+                saver.restore(sess, conf.save_dir + conf.save_name_reinforcement)
             if os.path.isdir('./pickles/epsilon.p'):
                 epsilon = pkl.load(open('./pickles/epsilon.p'))
             else:
@@ -320,7 +323,7 @@ def deep_q_train(nodes):
                 state = new_state
                 time_step += 1
                 if time_step % conf.save_freq == 0:
-                    saver.save(sess, conf.save_dir + conf.save_name, global_step=time_step)
+                    saver.save(sess, conf.save_dir + conf.save_name_reinforcement, global_step=time_step)
                 if time_step % 100 == 0:
                     print("Episode: %d, Time Step: %d, Reward: %d" % (episode, time_step, reward))
             train_writer.close()
@@ -331,7 +334,7 @@ def policy_gradient_train(nodes):
     with tf.Session() as sess:
         saver = tf.train.Saver()
         if conf.resume_training:
-            saver.restore(sess, conf.save_dir + conf.save_name)
+            saver.restore(sess, conf.save_dir + conf.save_name_supervised)
         else:
             sess.run(tf.global_variables_initializer())
         state = env.reset()

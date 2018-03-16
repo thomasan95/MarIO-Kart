@@ -4,7 +4,9 @@ class Config(object):
     """
     data_dir = './data/'
     save_dir = './saves/'
-    save_name = 'best_model'
+    save_name_supervised = 'best_model_supervised'
+    save_name_reinforcement = 'best_model_reinforcement'
+    first_reinforcement = True
     rom_dir = './ROM/'
     pickle_dir = './pickles/'
     checkpoint = './saves/actor/actor_model.ckpt'
