@@ -381,6 +381,8 @@ def main():
     with tf.variable_scope("Actor_Graph"):
         if args.reinforcement:
             graph, nodes = create_graph(keep_prob=1)
+        else:
+            graph, nodes = create_graph(keep_prob=conf.keep_prob)
     if conf.is_training:
         if args.supervised:
             losses = supervised_train(nodes)
