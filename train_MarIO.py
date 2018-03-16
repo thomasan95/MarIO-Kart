@@ -56,11 +56,14 @@ def create_graph(keep_prob=conf.keep_prob):
             a_w1 = tf.get_variable(name="act_W1", shape=[5, 5, 3, 24],
                                    initializer=tf.contrib.layers.xavier_initializer())
             a_b1 = tf.get_variable(name="act_b1", shape=[24], initializer=tf.zeros_initializer)
-
-            r_w1 = tf.get_variable(name="r_W1", shape=[5, 5, 12, 24],
-                                   initializer=tf.contrib.layers.xavier_initializer())
-            r_b1 = tf.get_variable(name="r_b1", shape=[24], initializer=tf.zeros_initializer)
-
+            # Attempt to stack first set of filters as the filters for 3 dim to 12 dim
+            if conf.resume_training:
+                r_w1 = tf.stack(a_w1, axis=2)
+                r_b1 = a_b1
+            else:
+                r_w1 = tf.get_variable(name="r_W1", shape=[5, 5, 12, 24],
+                                       initializer=tf.contrib.layers.xavier_initializer())
+                r_b1 = tf.get_variable(name="r_b1", shape=[24], initializer=tf.zeros_initializer)
             a_w2 = tf.get_variable(name='act_W2', shape=[5, 5, 24, 36],
                                    initializer=tf.contrib.layers.xavier_initializer())
             a_b2 = tf.get_variable(name='act_b2', shape=[36], initializer=tf.zeros_initializer)
@@ -247,12 +250,22 @@ def deep_q_train(nodes):
     with tf.Session() as sess:
         saver = tf.train.Saver()
         # Initialize all variables such as Q inside network
-        sess.run(tf.global_variables_initializer())
+        if conf.resume_training:
+            saver.restore(sess, conf.sum_dir + conf.save_name)
+            if os.path.isdir('./pickles/epsilon.p'):
+                epsilon = pkl.load(open('./pickles/epsilon.p'))
+            else:
+                epsilon = conf.initial_epsilon/5
+            if os.path.isdir('./pickles/memory.p'):
+                memory = pkl.load(open('./pickles/memory.p'))
+            else:
+                memory = deque(maxlen=conf.replay_memory)
+        else:
+            sess.run(tf.global_variables_initializer())
+            epsilon = conf.initial_epsilon
+            memory = deque(maxlen=conf.replay_memory)
         train_writer = tf.summary.FileWriter(conf.sum_dir + './train/', sess.graph)
         # Initialize memory to some capacity
-        memory = deque(maxlen=conf.replay_memory)
-        epsilon = conf.initial_epsilon
-
         for episode in range(1, conf.max_episodes):
             still_in_episode = True
             # Will replace with samples from the initial game screen
