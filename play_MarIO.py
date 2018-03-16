@@ -60,7 +60,7 @@ class Actor(object):
 
 
 if __name__ == "__main__":
-    env = gym.make('Mario-Kart-Luigi-Raceway-v0')
+    env = gym.make('Mario-Kart-Royal-Raceway-v0')
     state = env.reset()
     # state = resize_img(state)
     # state = utils.resize_img(state)
@@ -79,8 +79,6 @@ if __name__ == "__main__":
                 state = np.dstack((state, state, state, state))
                 first = False
             action = actor.get_action(state)
-            np_act = np.asarray(action)
-            print(np_act.shape)
             obs, reward, end_episode, info = env.step(action)
             obs = utils.resize_img(obs)
             state = np.dstack((obs, obs, obs, obs))
