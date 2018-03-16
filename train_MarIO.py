@@ -260,7 +260,7 @@ def deep_q_train(nodes):
             if os.path.isdir('./pickles/epsilon.p'):
                 epsilon = pkl.load(open('./pickles/epsilon.p'))
             else:
-                epsilon = conf.initial_epsilon/5
+                epsilon = conf.initial_epsilon/8
             if os.path.isdir('./pickles/memory.p'):
                 memory = pkl.load(open('./pickles/memory.p'))
             else:
@@ -307,6 +307,7 @@ def deep_q_train(nodes):
                     int(round(action[3])),
                     int(round(action[4])),
                 ]
+                print(action_input)
                 observation, reward, end_episode, _ = env.step(action_input)
                 # Finish rest of the pipeline for this time step, but proceed to the next episode after
                 obs = utils.resize_img(observation)
