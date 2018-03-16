@@ -248,7 +248,7 @@ def deep_q_train(nodes):
     :return:
     """
     print("\nReinforcement Learning\n")
-    env = gym.make('Mario-Kart-Royal-Raceway-v0')
+    env = gym.make('Mario-Kart-Luigi-Raceway-v0')
     with tf.Session() as sess:
         saver = tf.train.Saver()
         # Initialize all variables such as Q inside network
@@ -283,7 +283,7 @@ def deep_q_train(nodes):
                 # Grab actions from first state
                 action_input = np.zeros([conf.OUTPUT_SIZE])
                 state = np.expand_dims(inp, axis=0)
-                out_t = sess.run(nodes["out"], feed_dict={nodes["state_inp"]: state})[0]
+                out_t = sess.run(nodes["out"], feed_dict={nodes["r_inp"]: state})[0]
                 # Perform random explore action or else grab maximum output
                 if random.random() <= epsilon:
                     act_indx = random.randrange(conf.OUTPUT_SIZE)
