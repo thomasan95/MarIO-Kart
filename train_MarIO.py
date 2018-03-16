@@ -203,16 +203,16 @@ def supervised_train(nodes):
                     loss, out, _ = sess.run([nodes["s_loss"], nodes["out"], nodes["optim_s"]],
                                             feed_dict={nodes["state_inp"]: x_input,
                                                        nodes["s_action"]: y_input})
-                    print("[%.4f, %.4f, %.4f, %.4f, %.4f]" % (out[0,0], out[0,1], out[0,2], out[0,3], out[0,4]))
+                    # print("[%.4f, %.4f, %.4f, %.4f, %.4f]" % (out[0,0], out[0,1], out[0,2], out[0,3], out[0,4]))
                     mean_loss += np.mean(loss)
                     train_loss += mean_loss
                     train_iter += 1
                     if train_iter % 50 == 0:
                         samp_out, samp_true = out[0], y_input[0]
                         diff = np.absolute(samp_out - samp_true)
-                        print("Difference between out and true: ")
-                        print("[%.4f, %.4f, %.4f, %.4f, %.4f]" % (float(diff[0]), float(diff[1]), float(diff[2]),
-                                                                  float(diff[3]), float(diff[4])))
+                        # print("Difference between out and true: ")
+                        # print("[%.4f, %.4f, %.4f, %.4f, %.4f]" % (float(diff[0]), float(diff[1]), float(diff[2]),
+                                                                  # float(diff[3]), float(diff[4])))
                         print("Done with %d iterations of %d training samples:\tCurr Loss: %f" %
                               (train_iter, batch_i*batch_size + batch_size, mean_loss/50))
                         mean_loss = 0

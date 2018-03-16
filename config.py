@@ -31,7 +31,7 @@ class Config(object):
     save_freq = 1000
     sum_dir = './summaries/'
     is_training = True
-    epochs = 100
+    epochs = 200
     batch_size = 50
     resume_training = False
     initial_epsilon = 1.0
