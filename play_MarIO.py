@@ -7,8 +7,14 @@ import gym
 import gym_mupen64plus
 import tensorflow as tf
 import utilities as utils
+import argparse
 conf = config.Config()
 
+parser = argparse.ArgumentParser()
+group = parser.add_mutually_exclusive_group(required=True)
+group.add_argument("-s", "--supervised", action='store_true', help="supervised training")
+group.add_argument("-dqn", "--reinforcement", action='store_true', help="reinforcement learning")
+args = parser.parse_args()
 
 class Actor(object):
     def __init__(self, sess):
@@ -16,7 +22,12 @@ class Actor(object):
             self.state_inp, self.model = create_graph(keep_prob=1)
         self.sess = sess
         self.saver = tf.train.Saver()
-        self.saver.restore(sess, conf.save_dir + conf.save_name)
+        # if args.supervised:
+        self.saver.restore(sess, conf.save_dir + conf.save_name_supervised)
+        # elif args.reinforcement:
+        	# self.saver.restore(sess, conf.save_dir + conf.save_name_reinforcement)
+        # else:
+        	# raise ValueError("Please specify supervised (-s) or reinforcement (-r")
 
         self.real_controller = XboxController()
 
@@ -24,7 +35,7 @@ class Actor(object):
         manual_override = self.real_controller.LeftBumper == 1
         if not manual_override:
             # Look
-            vec = resize_img(obs)
+            # vec = resize_img(obs)
             vec = np.expand_dims(vec, axis=0)  # expand dimensions for predict, it wants (1,66,200,3) not (66, 200, 3)
             # Think
             out = self.sess.run(self.model["out"], feed_dict={self.model["state_inp"]: vec})
@@ -48,8 +59,9 @@ class Actor(object):
 
 
 if __name__ == "__main__":
-    env = gym.make('Mario-Kart-Royal-Raceway-v0')
+    env = gym.make('Mario-Kart-Luigi-Raceway-v0')
     state = env.reset()
+    # state = resize_img(state)
     # state = utils.resize_img(state)
     env.render()
     print('env ready!')
@@ -61,15 +73,15 @@ if __name__ == "__main__":
         end_episode = False
         first = True
         while not end_episode:
-            # if first:
-            #     state = utils.resize_img(state)
-            #     state = np.dstack((state, state, state, state))
-            #     first = False
-            # else:
-            #     state[:, :, :3] = observation
+            if first:
+                state = utils.resize_img(state)
+                state = np.dstack((state, state, state, state))
+                first = False
+            else:
+                state[:, :, :3] = observation
             action = actor.get_action(state)
             state, reward, end_episode, info = env.step(action)
-            # state = utils.resize_img(state)
+            state = utils.resize_img(state)
             env.render()
             total_reward += reward
         print('end episode... total reward: ' + str(total_reward))
