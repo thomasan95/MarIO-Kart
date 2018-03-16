@@ -47,23 +47,25 @@ def create_graph(keep_prob=conf.keep_prob):
         # actor = tf.Graph()
         # with actor.as_graph_def():
         with tf.variable_scope("actor_input"):
-            state_inp = tf.placeholder(tf.float32, shape=conf.inp_shape, name="actor_state_input")
-            reinforcement_inp = tf.placeholder(tf.float32, shape=conf.r_inp_shape, name="reinforcement_inp")
+            state_inp = tf.placeholder(tf.float32, shape=conf.r_inp_shape, name="actor_state_input")
+            # reinforcement_inp = tf.placeholder(tf.float32, shape=conf.r_inp_shape, name="reinforcement_inp")
             supervised_act = tf.placeholder(tf.float32, shape=[None, conf.OUTPUT_SIZE], name="supervised_action")
             actor_action = tf.placeholder(tf.float32, shape=[None, conf.OUTPUT_SIZE], name="actor_action_ph")
             yj = tf.placeholder(tf.float32, shape=[None], name="yj")
         with tf.variable_scope("actor_kernels_weights"):
-            a_w1 = tf.get_variable(name="act_W1", shape=[5, 5, 3, 24],
+            a_w1 = tf.get_variable(name="act_W1", shape=[5, 5, 12, 24],
                                    initializer=tf.contrib.layers.xavier_initializer())
             a_b1 = tf.get_variable(name="act_b1", shape=[24], initializer=tf.zeros_initializer)
-            if conf.resume_training:
-                # Attempt to stack first set of filters as the filters for 3 dim to 12 dim
-                r_w1 = tf.stack(a_w1, axis=2, name="r_W1")
-                r_b1 = tf.assign(a_b1, name="r_b1")
-            else:
-                r_w1 = tf.get_variable(name="r_W1", shape=[5, 5, 12, 24],
-                                       initializer=tf.contrib.layers.xavier_initializer())
-                r_b1 = tf.get_variable(name="r_b1", shape=[24], initializer=tf.zeros_initializer)
+            # if conf.resume_training:
+            #     # Attempt to stack first set of filters as the filters for 3 dim to 12 dim
+            #     r_w1 = tf.stack(a_w1, axis=2, name="r_W1")
+            #     r_b1 = tf.assign(a_b1, name="r_b1")
+            # else:
+            # r_w1 = tf.get_variable(name="r_W1", shape=[5, 5, 12, 24],
+                                       # initializer=tf.contrib.layers.xavier_initializer())
+            # r_b1 = tf.get_variable(name="r_b1", shape=[24], initializer=tf.zeros_initializer)
+            # r_w1 = tf.concat((a_w1, a_w1, a_w1, a_w1), axis=2)
+            # r_b1 = a_b1
             a_w2 = tf.get_variable(name='act_W2', shape=[5, 5, 24, 36],
                                    initializer=tf.contrib.layers.xavier_initializer())
             a_b2 = tf.get_variable(name='act_b2', shape=[36], initializer=tf.zeros_initializer)
@@ -99,13 +101,14 @@ def create_graph(keep_prob=conf.keep_prob):
             a_w_fc5 = tf.get_variable(name="act_W_fc5", shape=[10, conf.OUTPUT_SIZE],
                                       initializer=tf.contrib.layers.xavier_initializer())
             a_b_fc5 = tf.get_variable(name="act_b_fc5", shape=[conf.OUTPUT_SIZE], initializer=tf.zeros_initializer)
+
         with tf.variable_scope("actor_conv_layers"):
-            if args.supervised:
-                inp_batchnorm = tf.contrib.layers.batch_norm(state_inp, center=True, scale=True, is_training=True)
-                conv1 = tf.nn.relu(tf.nn.conv2d(state_inp, a_w1, strides=[1, 2, 2, 1], padding='VALID') + a_b1)
-            else:
-                inp_batchnorm = tf.contrib.layers.batch_norm(reinforcement_inp, center=True, scale=True, is_training=True)
-                conv1 = tf.nn.relu(tf.nn.conv2d(reinforcement_inp, r_w1, strides=[1, 2, 2, 1], padding='VALID') + r_b1)
+            # inp_batchnorm = tf.contrib.layers.batch_norm(reinforcement_inp, center=True, scale=True, is_training=True)
+            inp_batchnorm = tf.contrib.layers.batch_norm(state_inp, center=True, scale=True, is_training=True)
+            # if args.supervised:
+                # conv1 = tf.nn.relu(tf.nn.conv2d(state_inp, a_w1, strides=[1, 2, 2, 1], padding='VALID') + a_b1)
+            # else:
+            conv1 = tf.nn.relu(tf.nn.conv2d(state_inp, a_w1, strides=[1, 2, 2, 1], padding='VALID') + a_b1)
             conv2 = tf.nn.relu(tf.nn.conv2d(conv1, a_w2, strides=[1, 2, 2, 1], padding='VALID') + a_b2)
             conv3 = tf.nn.relu(tf.nn.conv2d(conv2, a_w3, strides=[1, 2, 2, 1], padding='VALID') + a_b3)
             conv4 = tf.nn.relu(tf.nn.conv2d(conv3, a_w4, strides=[1, 1, 1, 1], padding='VALID') + a_b4)
@@ -122,7 +125,7 @@ def create_graph(keep_prob=conf.keep_prob):
             fc4 = tf.nn.dropout(fc4, keep_prob=keep_prob)
         with tf.name_scope("actor_predictions"):
             out = tf.nn.softsign(tf.matmul(fc4, a_w_fc5) + a_b_fc5, name="actor_output")
-            supervised_loss = tf.sqrt(tf.reduce_sum(tf.square(out - supervised_act), axis=-1))
+            supervised_loss = tf.sqrt(tf.reduce_sum(tf.square(out - supervised_act)))  # axis = -1
             action = tf.reduce_sum(tf.multiply(out, actor_action))
             tf.summary.histogram('outputs', out)
             tf.summary.scalar('action', action)
@@ -135,7 +138,6 @@ def create_graph(keep_prob=conf.keep_prob):
             optim_reinforcement = tf.train.AdamOptimizer().minimize(loss)
     actor_nodes = {"state_inp": state_inp,
                    "action_inp": actor_action,
-                   "r_inp": reinforcement_inp,
                    "yj": yj,
                    "out": out,
                    "action": action,
@@ -201,15 +203,14 @@ def supervised_train(nodes):
                 else:
                     num_batches = len(x_train) // batch_size
                     val_size = len(x_val) // batch_size
-                for batch_i, (x_input, y_input) in enumerate(utils.get_batches(x_train, y_train, batch_size)):
+                for batch_i, (x_input, y_input) in enumerate(utils.get_4d_batches(x_train, y_train, batch_size)):
                     loss, out, _ = sess.run([nodes["s_loss"], nodes["out"], nodes["optim_s"]],
                                             feed_dict={nodes["state_inp"]: x_input,
                                                        nodes["s_action"]: y_input})
-
                     # print("[%.4f, %.4f, %.4f, %.4f, %.4f]" % (out[0,0], out[0,1], out[0,2], out[0,3], out[0,4]))
 
                     # print("[%.4f, %.4f, %.4f, %.4f, %.4f]" % (out[0, 0], out[0, 1], out[0, 2], out[0, 3], out[0, 4]))
-                    mean_loss += np.mean(loss)
+                    mean_loss += loss
                     train_loss += mean_loss
                     train_iter += 1
                     if train_iter % 50 == 0:
@@ -225,7 +226,7 @@ def supervised_train(nodes):
                         saver.save(sess, conf.save_dir + conf.save_name_supervised)
                 if len(x_val) < batch_size:
                     batch_size = len(x_val)
-                for val_i, (val_x_inp, val_y_inp) in enumerate(utils.get_batches(x_val, y_val, batch_size)):
+                for val_i, (val_x_inp, val_y_inp) in enumerate(utils.get_4d_batches(x_val, y_val, batch_size)):
                     loss = sess.run(nodes["s_loss"], feed_dict={nodes["state_inp"]: val_x_inp,
                                                                 nodes["s_action"]: val_y_inp})
                     mean_loss = np.mean(loss)
@@ -270,7 +271,7 @@ def deep_q_train(nodes):
             epsilon = conf.initial_epsilon
             memory = deque(maxlen=conf.replay_memory)
         train_writer = tf.summary.FileWriter(conf.sum_dir + './train/', sess.graph)
-        # Initialize memory to some capacity
+        # Initialize memory to some capacitysave_name_supervised
         for episode in range(1, conf.max_episodes):
             still_in_episode = True
             # Will replace with samples from the initial game screen
@@ -284,7 +285,7 @@ def deep_q_train(nodes):
                 # Grab actions from first state
                 action = np.zeros([conf.OUTPUT_SIZE])
                 state = np.expand_dims(inp, axis=0)
-                out_t = sess.run(nodes["out"], feed_dict={nodes["r_inp"]: state})[0]
+                out_t = sess.run(nodes["out"], feed_dict={nodes["state_inp"]: state})[0]
                 # Perform random explore action or else grab maximum output
                 if random.random() <= epsilon:
                     # act_indx = random.randrange(conf.OUTPUT_SIZE)
@@ -296,9 +297,10 @@ def deep_q_train(nodes):
                 else:
                     action = out_t
                 # Randomness factor
-                if epsilon > conf.final_epsilon:
+                if epsilon > 1000000000:#conf.final_epsilon:
                     epsilon *= conf.epsilon_decay
-
+                if time_step < 500:
+                    action[2] = 1
                 # Observe next reward from action
                 action_input = [
                     int(action[0] * 80),
