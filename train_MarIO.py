@@ -286,15 +286,20 @@ def deep_q_train(nodes):
                 out_t = sess.run(nodes["out"], feed_dict={nodes["r_inp"]: state})[0]
                 # Perform random explore action or else grab maximum output
                 if random.random() <= epsilon:
-                    act_indx = random.randrange(conf.OUTPUT_SIZE)
+                    # act_indx = random.randrange(conf.OUTPUT_SIZE)
+                    action_input[0] = np.random.uniform(low=-1.0, high=1.0)
+                    action_input[1] = np.random.uniform(low=-1.0, high=1.0)
+                    action_input[2] = np.random.uniform()
+                    action_input[3] = np.random.uniform()
+                    action_input[4] = np.random.uniform()
                 else:
-                    act_indx = np.argmax(out_t)
-                action_input[act_indx] = 1
+                    action_input = out_t
                 # Randomness factor
                 if epsilon > conf.final_epsilon:
                     epsilon *= conf.epsilon_decay
+
                 # Observe next reward from action
-                observation, reward, end_episode, info = env.step(action_input)
+                observation, reward, end_episode, _ = env.step(action_input)
                 # Finish rest of the pipeline for this time step, but proceed to the next episode after
                 obs = utils.resize_img(observation)
                 if end_episode:
