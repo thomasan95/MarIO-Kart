@@ -8,6 +8,7 @@ def main():
     # mirror_images()
     races = filter(lambda f: not f.startswith('.'), os.listdir(path))
     for race in races:
+        print("Augmenting: "+race)
         mirror_images_2(race)
         start_frames(race)
 
@@ -58,9 +59,9 @@ def mirror_images_2(race):
     assert isinstance(race,str)
 
     race_path = 'samples/'+race
-    race_mirror_path = 'samples_mirrored/'+race+'_mirrored'
-    if not os.path.isdir('samples_mirrored'):
-        os.mkdir('samples_mirrored')
+    race_mirror_path = 'samples/'+race+'_mirrored'
+    if not os.path.isdir('samples'):
+        os.mkdir('samples')
     if not os.path.isdir(race_mirror_path):
         os.mkdir(race_mirror_path)
 
@@ -68,6 +69,7 @@ def mirror_images_2(race):
     files = filter( lambda f: not f.startswith('.'), os.listdir(race_path))
     for file in files:
         # ignore hidden files
+        
         ext = os.path.splitext(file)[-1].lower()
         if not ext=='.png':
             csv_file = file
@@ -119,8 +121,9 @@ def start_frames(race):
             csv_file = file
             break
         else:
-            print("No CSV file found.")
-            return
+            continue
+           # print("No CSV file found.")
+            
 
     with open(race_path+'/' + csv_file, 'r') as f:
         rows = f.read().splitlines()
