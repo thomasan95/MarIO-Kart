@@ -377,7 +377,6 @@ def policy_gradient_train(nodes):
 
 
 def main():
-    # graph, inp, max_action, optimal_action, out, action, loss, optimizer = create_graph()
     with tf.variable_scope("Actor_Graph"):
         if args.reinforcement:
             graph, nodes = create_graph(keep_prob=1)
