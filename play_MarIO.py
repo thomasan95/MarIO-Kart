@@ -60,7 +60,7 @@ class Actor(object):
 
 
 if __name__ == "__main__":
-    env = gym.make('Mario-Kart-Royal-Raceway-v0')
+    env = gym.make('Mario-Kart-Luigi-Raceway-v0')
     state = env.reset()
     # state = resize_img(state)
     # state = utils.resize_img(state)

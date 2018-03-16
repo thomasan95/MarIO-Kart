@@ -261,7 +261,7 @@ def deep_q_train(nodes):
             if os.path.isdir('./pickles/epsilon.p'):
                 epsilon = pkl.load(open('./pickles/epsilon.p'))
             else:
-                epsilon = conf.initial_epsilon/8
+                epsilon = conf.initial_epsilon/100
             if os.path.isdir('./pickles/memory.p'):
                 memory = pkl.load(open('./pickles/memory.p'))
             else:
@@ -273,9 +273,6 @@ def deep_q_train(nodes):
         train_writer = tf.summary.FileWriter(conf.sum_dir + './train/', sess.graph)
         # Initialize memory to some capacitysave_name_supervised
         for episode in range(1, conf.max_episodes):
-            still_in_episode = True
-            # Will replace with samples from the initial game screen
-            # Want to send in 4 screens at a time to process, so stack along depth of image
             input_tensor = env.reset()
             input_tensor = utils.resize_img(input_tensor)
             inp = np.dstack((input_tensor, input_tensor, input_tensor, input_tensor))
@@ -285,10 +282,11 @@ def deep_q_train(nodes):
                 # Grab actions from first state
                 action = np.zeros([conf.OUTPUT_SIZE])
                 state = np.expand_dims(inp, axis=0)
-                out_t = sess.run(nodes["out"], feed_dict={nodes["state_inp"]: state})[0]
+                out_t = sess.run(nodes["out"], feed_dict={nodes["state_inp"]: state})
+                out_t = out_t[0]
                 # Perform random explore action or else grab maximum output
                 if random.random() <= epsilon:
-                    # act_indx = random.randrange(conf.OUTPUT_SIZE)
+                    print("[INFO]: Random Action")
                     action[0] = np.random.uniform(low=-1.0, high=1.0)
                     action[1] = np.random.uniform(low=-1.0, high=1.0)
                     action[2] = np.random.uniform()
@@ -297,9 +295,9 @@ def deep_q_train(nodes):
                 else:
                     action = out_t
                 # Randomness factor
-                if epsilon > 1000000000:#conf.final_epsilon:
+                if epsilon > conf.final_epsilon:#conf.final_epsilon:
                     epsilon *= conf.epsilon_decay
-                if time_step < 500:
+                if time_step < 400:
                     action[2] = 1
                 # Observe next reward from action
                 action_input = [
@@ -310,16 +308,17 @@ def deep_q_train(nodes):
                     int(round(action[4])),
                 ]
                 print(action_input)
-                observation, reward, end_episode, _ = env.step(action_input)
+                obs, reward, end_episode, _ = env.step(action_input)
                 # Finish rest of the pipeline for this time step, but proceed to the next episode after
-                obs = utils.resize_img(observation)
+                obs = utils.resize_img(obs)
                 env.render()
-                obs = np.expand_dims(obs, axis=0)
+                # obs = np.expand_dims(obs, axis=0)
                 new_state = np.zeros(state.shape)
-                new_state[:, :, :, :3] = obs
-                new_state[:, :, :, 3:] = state[:, :, :, :9]
+                new_state[:, :, :, :6] = obs
+                new_state[:, :, :, 6:] = state[:, :, :, :6]
+                # new_state = np.dstack((obs, obs, obs, obs))
                 # Add to memory
-                memory.append((state, action_input, reward, new_state))
+                memory.append((state, action, reward, new_state))
 
                 if time_step > conf.start_memory_sample:
                     batch = random.sample(memory, conf.batch_size)
@@ -337,6 +336,7 @@ def deep_q_train(nodes):
                     _ = sess.run(nodes["optim_r"], feed_dict={nodes["yj"]: yj,
                                                               nodes["action_inp"]: mem_action,
                                                               nodes["state_inp"]: mem_state})
+                print("Appending state")
                 state = new_state
                 time_step += 1
                 if time_step % conf.save_freq == 0:
@@ -378,7 +378,8 @@ def policy_gradient_train(nodes):
 def main():
     # graph, inp, max_action, optimal_action, out, action, loss, optimizer = create_graph()
     with tf.variable_scope("Actor_Graph"):
-        graph, nodes = create_graph()
+        if args.reinforcement:
+            graph, nodes = create_graph(keep_prob=1)
     if conf.is_training:
         if args.supervised:
             losses = supervised_train(nodes)
