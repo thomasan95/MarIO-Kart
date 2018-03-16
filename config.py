@@ -13,7 +13,7 @@ class Config(object):
     learning_rate = 0.001
     keep_prob = 0.9
     decay_steps = 100000
-    anneal_factor = 0.96
+    anneal_factor = 0.95
     OUTPUT_SIZE = 5
     '''
     Screenshot Dimensions
@@ -36,7 +36,7 @@ class Config(object):
     epochs = 200
     batch_size = 50
     resume_training = True
-    initial_epsilon = 1.0
+    initial_epsilon = 0.5
     epsilon_decay = 0.975
     final_epsilon = 0.05
     replay_memory = 50000

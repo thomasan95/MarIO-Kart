@@ -295,7 +295,7 @@ def deep_q_train(nodes):
                 else:
                     action = out_t
                 # Randomness factor
-                if epsilon > conf.final_epsilon:#conf.final_epsilon:
+                if epsilon > conf.final_epsilon:  # conf.final_epsilon:
                     epsilon *= conf.epsilon_decay
                 if time_step < 400:
                     action[2] = 1
@@ -318,9 +318,9 @@ def deep_q_train(nodes):
                 # new_state[:, :, :, :6] = temp
                 # new_state[:, :, :, 6:] = state[:, :, :, :6]
                 new_state = np.dstack((obs, obs, obs, obs))
+
                 # Add to memory
                 memory.append((state, action, reward, new_state))
-
                 if time_step > conf.start_memory_sample:
                     batch = random.sample(memory, conf.batch_size)
                     mem_state = [mem[0] for mem in batch]
@@ -338,7 +338,7 @@ def deep_q_train(nodes):
                                                               nodes["action_inp"]: mem_action,
                                                               nodes["state_inp"]: mem_state})
                 print("Appending state")
-                state = new_state
+                inp = new_state
                 time_step += 1
                 if time_step % conf.save_freq == 0:
                     saver.save(sess, conf.save_dir + conf.save_name_reinforcement, global_step=time_step)
@@ -385,7 +385,7 @@ def main():
             graph, nodes = create_graph(keep_prob=conf.keep_prob)
     if conf.is_training:
         if args.supervised:
-            losses = supervised_train(nodes)
+            _ = supervised_train(nodes)
         elif args.reinforcement:
             deep_q_train(nodes)
 
