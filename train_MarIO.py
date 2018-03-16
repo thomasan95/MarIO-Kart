@@ -56,10 +56,10 @@ def create_graph(keep_prob=conf.keep_prob):
             a_w1 = tf.get_variable(name="act_W1", shape=[5, 5, 3, 24],
                                    initializer=tf.contrib.layers.xavier_initializer())
             a_b1 = tf.get_variable(name="act_b1", shape=[24], initializer=tf.zeros_initializer)
-            # Attempt to stack first set of filters as the filters for 3 dim to 12 dim
             if conf.resume_training:
-                r_w1 = tf.stack(a_w1, axis=2)
-                r_b1 = a_b1
+                # Attempt to stack first set of filters as the filters for 3 dim to 12 dim
+                r_w1 = tf.stack(a_w1, axis=2, name="r_W1")
+                r_b1 = tf.assign(a_b1, name="r_b1")
             else:
                 r_w1 = tf.get_variable(name="r_W1", shape=[5, 5, 12, 24],
                                        initializer=tf.contrib.layers.xavier_initializer())
@@ -178,7 +178,6 @@ def supervised_train(nodes):
         train_writer = tf.summary.FileWriter(conf.sum_dir + './train/', sess.graph)
         train_iter = 0
         for epoch in range(1, conf.epochs + 1):
-            mean_loss = 0
             print("\nEpoch %d\n" % epoch)
             train_loss, val_loss = 0, 0
             indexes = np.arange(len(x_list))
@@ -206,7 +205,7 @@ def supervised_train(nodes):
                     loss, out, _ = sess.run([nodes["s_loss"], nodes["out"], nodes["optim_s"]],
                                             feed_dict={nodes["state_inp"]: x_input,
                                                        nodes["s_action"]: y_input})
-                    print("[%.4f, %.4f, %.4f, %.4f, %.4f]" % (out[0,0], out[0,1], out[0,2], out[0,3], out[0,4]))
+                    # print("[%.4f, %.4f, %.4f, %.4f, %.4f]" % (out[0, 0], out[0, 1], out[0, 2], out[0, 3], out[0, 4]))
                     mean_loss += np.mean(loss)
                     train_loss += mean_loss
                     train_iter += 1
