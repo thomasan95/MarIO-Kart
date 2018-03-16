@@ -281,24 +281,31 @@ def deep_q_train(nodes):
             time_step = 0
             while still_in_episode:
                 # Grab actions from first state
-                action_input = np.zeros([conf.OUTPUT_SIZE])
+                action = np.zeros([conf.OUTPUT_SIZE])
                 state = np.expand_dims(inp, axis=0)
                 out_t = sess.run(nodes["out"], feed_dict={nodes["r_inp"]: state})[0]
                 # Perform random explore action or else grab maximum output
                 if random.random() <= epsilon:
                     # act_indx = random.randrange(conf.OUTPUT_SIZE)
-                    action_input[0] = np.random.uniform(low=-1.0, high=1.0)
-                    action_input[1] = np.random.uniform(low=-1.0, high=1.0)
-                    action_input[2] = np.random.uniform()
-                    action_input[3] = np.random.uniform()
-                    action_input[4] = np.random.uniform()
+                    action[0] = np.random.uniform(low=-1.0, high=1.0)
+                    action[1] = np.random.uniform(low=-1.0, high=1.0)
+                    action[2] = np.random.uniform()
+                    action[3] = np.random.uniform()
+                    action[4] = np.random.uniform()
                 else:
-                    action_input = out_t
+                    action = out_t
                 # Randomness factor
                 if epsilon > conf.final_epsilon:
                     epsilon *= conf.epsilon_decay
 
                 # Observe next reward from action
+                action_input = [
+                    int(action[0] * 80),
+                    int(action[1] * 80),
+                    int(round(action[2])),
+                    int(round(action[3])),
+                    int(round(action[4])),
+                ]
                 observation, reward, end_episode, _ = env.step(action_input)
                 # Finish rest of the pipeline for this time step, but proceed to the next episode after
                 obs = utils.resize_img(observation)
