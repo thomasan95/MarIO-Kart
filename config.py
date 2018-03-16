@@ -36,7 +36,10 @@ class Config(object):
     epochs = 200
     batch_size = 50
     resume_training = True
-    initial_epsilon = 0.5
+    if first_reinforcement:
+        initial_epsilon = 0.9
+    else:
+        initial_epsilon = 0.5
     epsilon_decay = 0.975
     final_epsilon = 0.05
     replay_memory = 50000
