@@ -273,15 +273,15 @@ def deep_q_train(nodes):
         train_writer = tf.summary.FileWriter(conf.sum_dir + './train/', sess.graph)
         # Initialize memory to some capacity save_name_supervised
         for episode in range(1, conf.max_episodes):
-            input_tensor = env.reset()
-            input_tensor = utils.resize_img(input_tensor)
-            inp = np.dstack((input_tensor, input_tensor, input_tensor, input_tensor))
+            state = env.reset()
+            state = utils.resize_img(state)
+            state = np.dstack((state, state, state, state))
             time_step = 0
             end_episode = False
             while not end_episode:
                 # Grab actions from first state
                 action = np.zeros([conf.OUTPUT_SIZE])
-                state = np.expand_dims(inp, axis=0)
+                state = np.expand_dims(state, axis=0)
                 out_t = sess.run(nodes["out"], feed_dict={nodes["state_inp"]: state})
                 out_t = out_t[0]
                 # Perform random explore action or else grab maximum output
@@ -314,10 +314,11 @@ def deep_q_train(nodes):
                 env.render()
                 # temp = np.dstack((obs, obs, obs))
                 # temp = np.expand_dims(temp, axis=0)
-                # new_state = np.zeros(state.shape)
-                # new_state[:, :, :, :6] = temp
-                # new_state[:, :, :, 6:] = state[:, :, :, :6]
-                new_state = np.dstack((obs, obs, obs, obs))
+                ''' Play around with these few lines to see if dstack or consec frames '''
+                new_state = np.zeros(state.shape)
+                new_state[:, :, :, :3] = obs
+                new_state[:, :, :, 3:] = state[:, :, :, :9]
+                # new_state = np.dstack((obs, obs, obs, obs))
 
                 # Add to memory
                 memory.append((state, action, reward, new_state))
@@ -337,8 +338,7 @@ def deep_q_train(nodes):
                     _ = sess.run(nodes["optim_r"], feed_dict={nodes["yj"]: yj,
                                                               nodes["action_inp"]: mem_action,
                                                               nodes["state_inp"]: mem_state})
-                print("Appending state")
-                inp = new_state
+                state = new_state
                 time_step += 1
                 if time_step % conf.save_freq == 0:
                     saver.save(sess, conf.save_dir + conf.save_name_reinforcement, global_step=time_step)
