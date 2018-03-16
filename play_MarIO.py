@@ -16,6 +16,7 @@ group.add_argument("-s", "--supervised", action='store_true', help="supervised t
 group.add_argument("-dqn", "--reinforcement", action='store_true', help="reinforcement learning")
 args = parser.parse_args()
 
+
 class Actor(object):
     def __init__(self, sess):
         with tf.variable_scope("Actor_Graph"):
@@ -31,12 +32,12 @@ class Actor(object):
 
         self.real_controller = XboxController()
 
-    def get_action(self, obs):
+    def get_action(self, observation):
         manual_override = self.real_controller.LeftBumper == 1
         if not manual_override:
             # Look
             # vec = resize_img(obs)
-            vec = np.expand_dims(vec, axis=0)  # expand dimensions for predict, it wants (1,66,200,3) not (66, 200, 3)
+            vec = np.expand_dims(observation, axis=0)  # expand dimensions for predict, it wants (1,66,200,3) not (66, 200, 3)
             # Think
             out = self.sess.run(self.model["out"], feed_dict={self.model["state_inp"]: vec})
             joystick = out[0]
