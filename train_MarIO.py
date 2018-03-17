@@ -279,12 +279,13 @@ def deep_q_train(nodes):
             state = env.reset()
             state = utils.resize_img(state)
             state = np.dstack((state, state, state, state))
+            state = np.expand_dims(state, axis=0)
             time_step = 0
             end_episode = False
             while not end_episode:
                 # Grab actions from first state
                 action = np.zeros([conf.OUTPUT_SIZE])
-                state = np.expand_dims(state, axis=0)
+                # state = np.expand_dims(state, axis=0)
                 out_t = sess.run(nodes["out"], feed_dict={nodes["state_inp"]: state})
                 out_t = out_t[0]
                 # Perform random explore action or else grab maximum output
