@@ -10,7 +10,6 @@ from collections import deque
 from sklearn.model_selection import train_test_split
 import pickle as pkl
 import os
-from termcolor import cprint
 print("Using TensorFlow version: " + str(tf.__version__))
 print("This code was developed in version: 1.6.0")
 # Load Configs
@@ -104,8 +103,12 @@ def create_graph(keep_prob=conf.keep_prob):
             a_b_fc5 = tf.get_variable(name="act_b_fc5", shape=[conf.OUTPUT_SIZE], initializer=tf.zeros_initializer)
 
         with tf.variable_scope("actor_conv_layers"):
+            # inp_batchnorm = tf.contrib.layers.batch_norm(reinforcement_inp, center=True, scale=True, is_training=True)
             inp_batchnorm = tf.contrib.layers.batch_norm(state_inp, center=True, scale=True, is_training=True)
-            conv1 = tf.nn.relu(tf.nn.conv2d(inp_batchnorm, a_w1, strides=[1, 2, 2, 1], padding='VALID') + a_b1)
+            # if args.supervised:
+                # conv1 = tf.nn.relu(tf.nn.conv2d(state_inp, a_w1, strides=[1, 2, 2, 1], padding='VALID') + a_b1)
+            # else:
+            conv1 = tf.nn.relu(tf.nn.conv2d(state_inp, a_w1, strides=[1, 2, 2, 1], padding='VALID') + a_b1)
             conv2 = tf.nn.relu(tf.nn.conv2d(conv1, a_w2, strides=[1, 2, 2, 1], padding='VALID') + a_b2)
             conv3 = tf.nn.relu(tf.nn.conv2d(conv2, a_w3, strides=[1, 2, 2, 1], padding='VALID') + a_b3)
             conv4 = tf.nn.relu(tf.nn.conv2d(conv3, a_w4, strides=[1, 1, 1, 1], padding='VALID') + a_b4)
@@ -273,12 +276,13 @@ def deep_q_train(nodes):
             state = env.reset()
             state = utils.resize_img(state)
             state = np.dstack((state, state, state, state))
+            state = np.expand_dims(state, axis=0)
             time_step = 0
             end_episode = False
             while not end_episode:
                 # Grab actions from first state
                 action = np.zeros([conf.OUTPUT_SIZE])
-                state = np.expand_dims(state, axis=0)
+                # state = np.expand_dims(state, axis=0)
                 out_t = sess.run(nodes["out"], feed_dict={nodes["state_inp"]: state})
                 out_t = out_t[0]
                 # Perform random explore action or else grab maximum output
@@ -296,19 +300,27 @@ def deep_q_train(nodes):
                     epsilon *= conf.epsilon_decay
                 if time_step < 400:
                     action[2] = 1
-                cprint("AI: " + str(action), 'green')
                 # Observe next reward from action
-                action_input = action
+                action_input = [
+                    int(action[0] * 80),
+                    int(action[1] * 80),
+                    int(round(action[2])),
+                    int(round(action[3])),
+                    int(round(action[4])),
+                ]
+                print(action_input)
                 obs, reward, end_episode, _ = env.step(action_input)
                 # Finish rest of the pipeline for this time step, but proceed to the next episode after
                 obs = utils.resize_img(obs)
                 env.render()
                 # temp = np.dstack((obs, obs, obs))
                 # temp = np.expand_dims(temp, axis=0)
+                ''' Play around with these few lines to see if dstack or consec frames '''
                 new_state = np.zeros(state.shape)
                 new_state[:, :, :, :3] = obs
                 new_state[:, :, :, 3:] = state[:, :, :, :9]
                 # new_state = np.dstack((obs, obs, obs, obs))
+
                 # Add to memory
                 memory.append((state, action, reward, new_state))
                 if time_step > conf.start_memory_sample:
