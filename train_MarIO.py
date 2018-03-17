@@ -10,7 +10,6 @@ from collections import deque
 from sklearn.model_selection import train_test_split
 import pickle as pkl
 import os
-from utilities import XboxController
 from termcolor import cprint
 print("Using TensorFlow version: " + str(tf.__version__))
 print("This code was developed in version: 1.6.0")
@@ -105,12 +104,8 @@ def create_graph(keep_prob=conf.keep_prob):
             a_b_fc5 = tf.get_variable(name="act_b_fc5", shape=[conf.OUTPUT_SIZE], initializer=tf.zeros_initializer)
 
         with tf.variable_scope("actor_conv_layers"):
-            # inp_batchnorm = tf.contrib.layers.batch_norm(reinforcement_inp, center=True, scale=True, is_training=True)
             inp_batchnorm = tf.contrib.layers.batch_norm(state_inp, center=True, scale=True, is_training=True)
-            # if args.supervised:
-                # conv1 = tf.nn.relu(tf.nn.conv2d(state_inp, a_w1, strides=[1, 2, 2, 1], padding='VALID') + a_b1)
-            # else:
-            conv1 = tf.nn.relu(tf.nn.conv2d(state_inp, a_w1, strides=[1, 2, 2, 1], padding='VALID') + a_b1)
+            conv1 = tf.nn.relu(tf.nn.conv2d(inp_batchnorm, a_w1, strides=[1, 2, 2, 1], padding='VALID') + a_b1)
             conv2 = tf.nn.relu(tf.nn.conv2d(conv1, a_w2, strides=[1, 2, 2, 1], padding='VALID') + a_b2)
             conv3 = tf.nn.relu(tf.nn.conv2d(conv2, a_w3, strides=[1, 2, 2, 1], padding='VALID') + a_b3)
             conv4 = tf.nn.relu(tf.nn.conv2d(conv3, a_w4, strides=[1, 1, 1, 1], padding='VALID') + a_b4)
@@ -273,7 +268,6 @@ def deep_q_train(nodes):
             epsilon = conf.initial_epsilon
             memory = deque(maxlen=conf.replay_memory)
         train_writer = tf.summary.FileWriter(conf.sum_dir + './train/', sess.graph)
-        real_controller = XboxController()
         # Initialize memory to some capacity save_name_supervised
         for episode in range(1, conf.max_episodes):
             state = env.reset()
@@ -286,38 +280,25 @@ def deep_q_train(nodes):
                 # Grab actions from first state
                 action = np.zeros([conf.OUTPUT_SIZE])
                 # state = np.expand_dims(state, axis=0)
-                manual_override = real_controller.LeftBumper == 1
-                if not manual_override:
-                    out_t = sess.run(nodes["out"], feed_dict={nodes["state_inp"]: state})
-                    out_t = out_t[0]
-                    # Perform random explore action or else grab maximum output
-                    if random.random() <= epsilon:
-                        print("[INFO]: Random Action")
-                        action[0] = np.random.uniform(low=-1.0, high=1.0)
-                        action[1] = np.random.uniform(low=-1.0, high=1.0)
-                        action[2] = np.random.uniform()
-                        action[3] = np.random.uniform()
-                        action[4] = np.random.uniform()
-                    else:
-                        action = out_t
-                    # Randomness factor
-                    if epsilon > conf.final_epsilon:  # conf.final_epsilon:
-                        epsilon *= conf.epsilon_decay
-                    if time_step < 400:
-                        action[2] = 1
-                    cprint("AI: " + str(action), 'green')
-                # Observe next reward from action
+                out_t = sess.run(nodes["out"], feed_dict={nodes["state_inp"]: state})
+                out_t = out_t[0]
+                # Perform random explore action or else grab maximum output
+                if random.random() <= epsilon:
+                    print("[INFO]: Random Action")
+                    action[0] = np.random.uniform(low=-1.0, high=1.0)
+                    action[1] = np.random.uniform(low=-1.0, high=1.0)
+                    action[2] = np.random.uniform()
+                    action[3] = np.random.uniform()
+                    action[4] = np.random.uniform()
                 else:
-                    action = real_controller.read()
-                    action[1] += -1
-                    action = [
-                        int(action[0] * 80),
-                        int(action[1] * 80),
-                        int(round(action[2])),
-                        int(round(action[3])),
-                        int(round(action[4])),
-                    ]
-                    cprint("Manual: " + str(action), 'yellow')
+                    action = out_t
+                # Randomness factor
+                if epsilon > conf.final_epsilon:  # conf.final_epsilon:
+                    epsilon *= conf.epsilon_decay
+                if time_step < 400:
+                    action[2] = 1
+                cprint("AI: " + str(action), 'green')
+                # Observe next reward from action
                 action_input = action
                 obs, reward, end_episode, _ = env.step(action_input)
                 # Finish rest of the pipeline for this time step, but proceed to the next episode after
