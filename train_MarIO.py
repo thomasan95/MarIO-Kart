@@ -252,7 +252,6 @@ def deep_q_train(nodes):
     """
     print("\nReinforcement Learning\n")
     env = gym.make('Mario-Kart-Luigi-Raceway-v0')
-    real_controller = XboxController()
     with tf.Session() as sess:
         saver = tf.train.Saver()
         # Initialize all variables such as Q inside network
@@ -274,6 +273,7 @@ def deep_q_train(nodes):
             epsilon = conf.initial_epsilon
             memory = deque(maxlen=conf.replay_memory)
         train_writer = tf.summary.FileWriter(conf.sum_dir + './train/', sess.graph)
+        real_controller = XboxController()
         # Initialize memory to some capacity save_name_supervised
         for episode in range(1, conf.max_episodes):
             state = env.reset()
