@@ -286,45 +286,39 @@ def deep_q_train(nodes):
                 # Grab actions from first state
                 action = np.zeros([conf.OUTPUT_SIZE])
                 # state = np.expand_dims(state, axis=0)
-                out_t = sess.run(nodes["out"], feed_dict={nodes["state_inp"]: state})
-                out_t = out_t[0]
-                # Perform random explore action or else grab maximum output
-                if random.random() <= epsilon:
-                    print("[INFO]: Random Action")
-                    action[0] = np.random.uniform(low=-1.0, high=1.0)
-                    action[1] = np.random.uniform(low=-1.0, high=1.0)
-                    action[2] = np.random.uniform()
-                    action[3] = np.random.uniform()
-                    action[4] = np.random.uniform()
-                else:
-                    action = out_t
-                # Randomness factor
-                if epsilon > conf.final_epsilon:  # conf.final_epsilon:
-                    epsilon *= conf.epsilon_decay
-                if time_step < 400:
-                    action[2] = 1
-                # Observe next reward from action
                 manual_override = real_controller.LeftBumper == 1
                 if not manual_override:
-                    action_input = [
-                        int(action[0] * 80),
-                        int(action[1] * 80),
-                        int(round(action[2])),
-                        int(round(action[3])),
-                        int(round(action[4])),
-                    ]
-                    cprint("AI: " + str(action_input), 'green')
+                    out_t = sess.run(nodes["out"], feed_dict={nodes["state_inp"]: state})
+                    out_t = out_t[0]
+                    # Perform random explore action or else grab maximum output
+                    if random.random() <= epsilon:
+                        print("[INFO]: Random Action")
+                        action[0] = np.random.uniform(low=-1.0, high=1.0)
+                        action[1] = np.random.uniform(low=-1.0, high=1.0)
+                        action[2] = np.random.uniform()
+                        action[3] = np.random.uniform()
+                        action[4] = np.random.uniform()
+                    else:
+                        action = out_t
+                    # Randomness factor
+                    if epsilon > conf.final_epsilon:  # conf.final_epsilon:
+                        epsilon *= conf.epsilon_decay
+                    if time_step < 400:
+                        action[2] = 1
+                    cprint("AI: " + str(action), 'green')
+                # Observe next reward from action
                 else:
                     action = real_controller.read()
                     action[1] += -1
-                    action_input = [
+                    action = [
                         int(action[0] * 80),
                         int(action[1] * 80),
                         int(round(action[2])),
                         int(round(action[3])),
                         int(round(action[4])),
                     ]
-                    cprint("Manual: " + str(action_input), 'yellow')
+                    cprint("Manual: " + str(action), 'yellow')
+                action_input = action
                 obs, reward, end_episode, _ = env.step(action_input)
                 # Finish rest of the pipeline for this time step, but proceed to the next episode after
                 obs = utils.resize_img(obs)
