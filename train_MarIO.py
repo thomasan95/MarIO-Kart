@@ -10,6 +10,8 @@ from collections import deque
 from sklearn.model_selection import train_test_split
 import pickle as pkl
 import os
+from utilities import XboxController
+from termcolor import cprint
 print("Using TensorFlow version: " + str(tf.__version__))
 print("This code was developed in version: 1.6.0")
 # Load Configs
@@ -250,6 +252,7 @@ def deep_q_train(nodes):
     """
     print("\nReinforcement Learning\n")
     env = gym.make('Mario-Kart-Luigi-Raceway-v0')
+    real_controller = XboxController()
     with tf.Session() as sess:
         saver = tf.train.Saver()
         # Initialize all variables such as Q inside network
@@ -300,26 +303,37 @@ def deep_q_train(nodes):
                 if time_step < 400:
                     action[2] = 1
                 # Observe next reward from action
-                action_input = [
-                    int(action[0] * 80),
-                    int(action[1] * 80),
-                    int(round(action[2])),
-                    int(round(action[3])),
-                    int(round(action[4])),
-                ]
-                print(action_input)
+                manual_override = real_controller.LeftBumper == 1
+                if not manual_override:
+                    action_input = [
+                        int(action[0] * 80),
+                        int(action[1] * 80),
+                        int(round(action[2])),
+                        int(round(action[3])),
+                        int(round(action[4])),
+                    ]
+                    cprint("AI: " + str(action_input), 'green')
+                else:
+                    action = real_controller.read()
+                    action[1] += -1
+                    action_input = [
+                        int(action[0] * 80),
+                        int(action[1] * 80),
+                        int(round(action[2])),
+                        int(round(action[3])),
+                        int(round(action[4])),
+                    ]
+                    cprint("Manual: " + str(action_input), 'yellow')
                 obs, reward, end_episode, _ = env.step(action_input)
                 # Finish rest of the pipeline for this time step, but proceed to the next episode after
                 obs = utils.resize_img(obs)
                 env.render()
                 # temp = np.dstack((obs, obs, obs))
                 # temp = np.expand_dims(temp, axis=0)
-                ''' Play around with these few lines to see if dstack or consec frames '''
                 new_state = np.zeros(state.shape)
                 new_state[:, :, :, :3] = obs
                 new_state[:, :, :, 3:] = state[:, :, :, :9]
                 # new_state = np.dstack((obs, obs, obs, obs))
-
                 # Add to memory
                 memory.append((state, action, reward, new_state))
                 if time_step > conf.start_memory_sample:
