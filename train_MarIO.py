@@ -10,6 +10,8 @@ from collections import deque
 from sklearn.model_selection import train_test_split
 import pickle as pkl
 import os
+from termcolor import cprint
+#import psutil
 print("Using TensorFlow version: " + str(tf.__version__))
 print("This code was developed in version: 1.6.0")
 # Load Configs
@@ -104,7 +106,7 @@ def create_graph(keep_prob=conf.keep_prob):
 
         with tf.variable_scope("actor_conv_layers"):
             # inp_batchnorm = tf.contrib.layers.batch_norm(reinforcement_inp, center=True, scale=True, is_training=True)
-            inp_batchnorm = tf.contrib.layers.batch_norm(state_inp, center=True, scale=True, is_training=True)
+            # inp_batchnorm = tf.contrib.layers.batch_norm(state_inp, center=True, scale=True, is_training=True)
             # if args.supervised:
                 # conv1 = tf.nn.relu(tf.nn.conv2d(state_inp, a_w1, strides=[1, 2, 2, 1], padding='VALID') + a_b1)
             # else:
@@ -126,7 +128,7 @@ def create_graph(keep_prob=conf.keep_prob):
         with tf.name_scope("actor_predictions"):
             out = tf.nn.softsign(tf.matmul(fc4, a_w_fc5) + a_b_fc5, name="actor_output")
             supervised_loss = tf.sqrt(tf.reduce_sum(tf.square(out - supervised_act)))  # axis = -1
-            action = tf.reduce_sum(tf.multiply(out, actor_action))
+            action = tf.multiply(out, actor_action)
             tf.summary.histogram('outputs', out)
             tf.summary.scalar('action', action)
             tf.summary.scalar('supervised_loss', supervised_loss)
@@ -171,6 +173,7 @@ def supervised_train(nodes):
             y_list.append(npy)
     x_list.sort()
     y_list.sort()
+    indexes = np.arange(len(x_list))
     with tf.Session() as sess:
         saver = tf.train.Saver()
         if args.resume:
@@ -179,11 +182,15 @@ def supervised_train(nodes):
             sess.run(tf.global_variables_initializer())
         train_writer = tf.summary.FileWriter(conf.sum_dir + './train/', sess.graph)
         train_iter = 0
+        #process = psutil.Process(os.getpid())
+        #print(process.memory_info().rss)
         for epoch in range(1, conf.epochs + 1):
             print("\nEpoch %d\n" % epoch)
             train_loss, val_loss = 0, 0
-            indexes = np.arange(len(x_list))
             mean_loss = 0
+            #process = psutil.Process(os.getpid())
+            #print(process.memory_info().rss)
+
             if conf.shuffle:
                 np.random.shuffle(indexes)
             for num, file_i in enumerate(indexes):
@@ -232,8 +239,8 @@ def supervised_train(nodes):
                     mean_loss = np.mean(loss)
                     val_loss += mean_loss
                 # Append losses to generate plots in the future
-                losses["train"].append(train_loss/num_batches)
-                losses["valid"].append(val_loss/val_size)
+                #losses["train"].append(train_loss/num_batches)
+                #losses["valid"].append(val_loss/val_size)
                 with open(conf.pickle_dir + 'losses.p', 'wb') as f:
                     pkl.dump(losses, f)
         # Close train writer
@@ -276,7 +283,8 @@ def deep_q_train(nodes):
             state = env.reset()
             state = utils.resize_img(state)
             state = np.dstack((state, state, state, state))
-            state = np.expand_dims(state, axis=0)
+            if len(state.shape) < 4:
+                state = np.expand_dims(state, axis=0)
             time_step = 0
             end_episode = False
             while not end_episode:
@@ -287,18 +295,18 @@ def deep_q_train(nodes):
                 out_t = out_t[0]
                 # Perform random explore action or else grab maximum output
                 if random.random() <= epsilon:
-                    print("[INFO]: Random Action")
-                    action[0] = np.random.uniform(low=-1.0, high=1.0)
-                    action[1] = np.random.uniform(low=-1.0, high=1.0)
-                    action[2] = np.random.uniform()
+                    cprint("[INFO]: Random Action", 'white')
+                    action[0] = out_t[0]
+                    action[1] = out_t[1]
+                    action[2] = out_t[2]
                     action[3] = np.random.uniform()
-                    action[4] = np.random.uniform()
+                    action[4] = out_t[4]
                 else:
                     action = out_t
                 # Randomness factor
                 if epsilon > conf.final_epsilon:  # conf.final_epsilon:
                     epsilon *= conf.epsilon_decay
-                if time_step < 400:
+                if time_step < 500:
                     action[2] = 1
                 # Observe next reward from action
                 action_input = [
@@ -324,25 +332,30 @@ def deep_q_train(nodes):
                 # Add to memory
                 memory.append((state, action, reward, new_state))
                 if time_step > conf.start_memory_sample:
+                    cprint("\nSTARTING MEMORY REPLAY\n", 'red')
                     batch = random.sample(memory, conf.batch_size)
                     mem_state = [mem[0] for mem in batch]
                     mem_action = [mem[1] for mem in batch]
                     mem_reward = [mem[2] for mem in batch]
                     mem_next_state = [mem[3] for mem in batch]
-
-                    yj = []
+                    # yj = []
+                    # mem_inp = np.squeeze(mem_next_state, axis=1)
+                    mem_inp = np.squeeze(mem_state, axis=1)
                     mem_out = sess.run(nodes["out"], feed_dict={nodes["state_inp"]: mem_next_state})
-                    for i in range(0, len(batch)):
-                        yj.append(mem_reward[i] + conf.learning_rate*np.max(mem_out[i]))
+                    yj = mem_reward + (conf.learning_rate * mem_out)
+                    # for i in range(0, len(batch)):
+                    #     yj.append(mem_reward[i] + conf.learning_rate*np.max(mem_out[i]))
 
                     # Perform gradient descent on the loss function with respect to the yj and predicted output
                     _ = sess.run(nodes["optim_r"], feed_dict={nodes["yj"]: yj,
                                                               nodes["action_inp"]: mem_action,
-                                                              nodes["state_inp"]: mem_state})
+                                                              nodes["state_inp"]: mem_inp})
                 state = new_state
+                if len(state.shape) < 4:  # Ensure that it is 4 dimensional
+                    state = np.expand_dims(state, axis=0)
                 time_step += 1
                 if time_step % conf.save_freq == 0:
-                    saver.save(sess, conf.save_dir + conf.save_name_reinforcement, global_step=time_step)
+                    saver.save(sess, conf.save_dir + conf.save_name_reinforcement)
                 if time_step % 100 == 0:
                     print("Episode: %d, Time Step: %d, Reward: %d" % (episode, time_step, reward))
             train_writer.close()
