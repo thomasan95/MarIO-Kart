@@ -11,7 +11,6 @@ from sklearn.model_selection import train_test_split
 import pickle as pkl
 import os
 from termcolor import cprint
-#import psutil
 print("Using TensorFlow version: " + str(tf.__version__))
 print("This code was developed in version: 1.6.0")
 # Load Configs
@@ -46,11 +45,8 @@ def create_graph(keep_prob=conf.keep_prob):
     """
     # Fill in shape later since we'll downsample and resize
     with tf.variable_scope("actor"):
-        # actor = tf.Graph()
-        # with actor.as_graph_def():
         with tf.variable_scope("actor_input"):
             state_inp = tf.placeholder(tf.float32, shape=conf.r_inp_shape, name="actor_state_input")
-            # reinforcement_inp = tf.placeholder(tf.float32, shape=conf.r_inp_shape, name="reinforcement_inp")
             supervised_act = tf.placeholder(tf.float32, shape=[None, conf.OUTPUT_SIZE], name="supervised_action")
             actor_action = tf.placeholder(tf.float32, shape=[None, conf.OUTPUT_SIZE], name="actor_action_ph")
             yj = tf.placeholder(tf.float32, shape=[None, conf.OUTPUT_SIZE], name="yj")
@@ -58,16 +54,6 @@ def create_graph(keep_prob=conf.keep_prob):
             a_w1 = tf.get_variable(name="act_W1", shape=[5, 5, 12, 24],
                                    initializer=tf.contrib.layers.xavier_initializer())
             a_b1 = tf.get_variable(name="act_b1", shape=[24], initializer=tf.zeros_initializer)
-            # if conf.resume_training:
-            #     # Attempt to stack first set of filters as the filters for 3 dim to 12 dim
-            #     r_w1 = tf.stack(a_w1, axis=2, name="r_W1")
-            #     r_b1 = tf.assign(a_b1, name="r_b1")
-            # else:
-            # r_w1 = tf.get_variable(name="r_W1", shape=[5, 5, 12, 24],
-                                       # initializer=tf.contrib.layers.xavier_initializer())
-            # r_b1 = tf.get_variable(name="r_b1", shape=[24], initializer=tf.zeros_initializer)
-            # r_w1 = tf.concat((a_w1, a_w1, a_w1, a_w1), axis=2)
-            # r_b1 = a_b1
             a_w2 = tf.get_variable(name='act_W2', shape=[5, 5, 24, 36],
                                    initializer=tf.contrib.layers.xavier_initializer())
             a_b2 = tf.get_variable(name='act_b2', shape=[36], initializer=tf.zeros_initializer)
@@ -182,14 +168,10 @@ def supervised_train(nodes):
             sess.run(tf.global_variables_initializer())
         train_writer = tf.summary.FileWriter(conf.sum_dir + './train/', sess.graph)
         train_iter = 0
-        #process = psutil.Process(os.getpid())
-        #print(process.memory_info().rss)
         for epoch in range(1, conf.epochs + 1):
             print("\nEpoch %d\n" % epoch)
             train_loss, val_loss = 0, 0
             mean_loss = 0
-            #process = psutil.Process(os.getpid())
-            #print(process.memory_info().rss)
 
             if conf.shuffle:
                 np.random.shuffle(indexes)
@@ -214,18 +196,15 @@ def supervised_train(nodes):
                     loss, out, _ = sess.run([nodes["s_loss"], nodes["out"], nodes["optim_s"]],
                                             feed_dict={nodes["state_inp"]: x_input,
                                                        nodes["s_action"]: y_input})
-                    # print("[%.4f, %.4f, %.4f, %.4f, %.4f]" % (out[0,0], out[0,1], out[0,2], out[0,3], out[0,4]))
-
-                    # print("[%.4f, %.4f, %.4f, %.4f, %.4f]" % (out[0, 0], out[0, 1], out[0, 2], out[0, 3], out[0, 4]))
                     mean_loss += loss
                     train_loss += mean_loss
                     train_iter += 1
                     if train_iter % 50 == 0:
                         samp_out, samp_true = out[0], y_input[0]
                         diff = np.absolute(samp_out - samp_true)
-                        # print("Difference between out and true: ")
-                        # print("[%.4f, %.4f, %.4f, %.4f, %.4f]" % (float(diff[0]), float(diff[1]), float(diff[2]),
-                                                                  # float(diff[3]), float(diff[4])))
+                        print("Difference between out and true: ")
+                        print("[%.4f, %.4f, %.4f, %.4f, %.4f]" % (float(diff[0]), float(diff[1]), float(diff[2]),
+                                                                  float(diff[3]), float(diff[4])))
                         print("Done with %d iterations of %d training samples:\tCurr Loss: %f" %
                               (train_iter, batch_i*batch_size + batch_size, mean_loss/50))
                         mean_loss = 0
@@ -239,8 +218,8 @@ def supervised_train(nodes):
                     mean_loss = np.mean(loss)
                     val_loss += mean_loss
                 # Append losses to generate plots in the future
-                #losses["train"].append(train_loss/num_batches)
-                #losses["valid"].append(val_loss/val_size)
+                losses["train"].append(train_loss/num_batches)
+                losses["valid"].append(val_loss/val_size)
                 with open(conf.pickle_dir + 'losses.p', 'wb') as f:
                     pkl.dump(losses, f)
         # Close train writer
@@ -304,7 +283,7 @@ def deep_q_train(nodes):
                 else:
                     action = out_t
                 # Randomness factor
-                if epsilon > conf.final_epsilon:  # conf.final_epsilon:
+                if epsilon > conf.final_epsilon:
                     epsilon *= conf.epsilon_decay
                 if time_step < 500:
                     action[2] = 1
@@ -321,18 +300,14 @@ def deep_q_train(nodes):
                 # Finish rest of the pipeline for this time step, but proceed to the next episode after
                 obs = utils.resize_img(obs)
                 env.render()
-                # temp = np.dstack((obs, obs, obs))
-                # temp = np.expand_dims(temp, axis=0)
-                ''' Play around with these few lines to see if dstack or consec frames '''
                 new_state = np.zeros(state.shape)
                 new_state[:, :, :, :3] = obs
                 new_state[:, :, :, 3:] = state[:, :, :, :9]
-                # new_state = np.dstack((obs, obs, obs, obs))
 
                 # Add to memory
                 memory.append((state, action, reward, new_state))
                 if time_step > conf.start_memory_sample:
-                    cprint("\nSTARTING MEMORY REPLAY\n", 'red')
+                    cprint("MEMORY REPLAY", 'red')
                     batch = random.sample(memory, conf.batch_size)
                     mem_state = [mem[0] for mem in batch]
                     mem_action = [mem[1] for mem in batch]
@@ -343,8 +318,8 @@ def deep_q_train(nodes):
                     mem_inp = np.squeeze(mem_state, axis=1)
                     mem_next_state = np.squeeze(mem_next_state, axis=1)
                     mem_out = sess.run(nodes["out"], feed_dict={nodes["state_inp"]: mem_next_state})
-
-                    yj = mem_reward + (conf.learning_rate * mem_out)
+                    # Allow broadcasting of vectors and arrays
+                    yj = np.reshape(mem_reward, (conf.batch_size, 1)) + (conf.learning_rate * mem_out)
                     # for i in range(0, len(batch)):
                     #     yj.append(mem_reward[i] + conf.learning_rate*np.max(mem_out[i]))
 
