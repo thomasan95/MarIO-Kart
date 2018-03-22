@@ -344,7 +344,7 @@ def deep_q_train(nodes):
                     mem_next_state = np.squeeze(mem_next_state, axis=1)
                     mem_out = sess.run(nodes["out"], feed_dict={nodes["state_inp"]: mem_next_state})
 
-                    yj = mem_reward + (conf.learning_rate * mem_out)
+                    yj = np.reshape(mem_reward, (conf.batch_size, 1)) + (conf.learning_rate * mem_out)
                     # for i in range(0, len(batch)):
                     #     yj.append(mem_reward[i] + conf.learning_rate*np.max(mem_out[i]))
 
