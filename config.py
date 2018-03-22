@@ -9,9 +9,9 @@ class Config(object):
     first_reinforcement = True
     rom_dir = './ROM/'
     pickle_dir = './pickles/'
-    checkpoint = './saves/actor/actor_model.ckpt'
+    checkpoint = './saves_walls/actor/actor_model.ckpt'
     learning_rate = 0.001
-    keep_prob = 0.9
+    keep_prob = 0.85
     decay_steps = 100000
     anneal_factor = 0.95
     OUTPUT_SIZE = 5
@@ -33,8 +33,8 @@ class Config(object):
     save_freq = 1000
     sum_dir = './summaries/'
     is_training = True
-    epochs = 200
-    batch_size = 50
+    epochs = 150
+    batch_size = 16
     resume_training = True
     if first_reinforcement:
         initial_epsilon = 0.9
@@ -42,8 +42,8 @@ class Config(object):
         initial_epsilon = 0.15
     epsilon_decay = 0.975
     final_epsilon = 0.05
-    replay_memory = 50000
-    start_memory_sample = 50000
-    max_episodes = 500000
+    replay_memory = 5000
+    start_memory_sample = 5000
+    max_episodes = 50
     val_split = 0.1
     shuffle = True
