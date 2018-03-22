@@ -53,7 +53,7 @@ def create_graph(keep_prob=conf.keep_prob):
             # reinforcement_inp = tf.placeholder(tf.float32, shape=conf.r_inp_shape, name="reinforcement_inp")
             supervised_act = tf.placeholder(tf.float32, shape=[None, conf.OUTPUT_SIZE], name="supervised_action")
             actor_action = tf.placeholder(tf.float32, shape=[None, conf.OUTPUT_SIZE], name="actor_action_ph")
-            yj = tf.placeholder(tf.float32, shape=[None], name="yj")
+            yj = tf.placeholder(tf.float32, shape=[None, conf.OUTPUT_SIZE], name="yj")
         with tf.variable_scope("actor_kernels_weights"):
             a_w1 = tf.get_variable(name="act_W1", shape=[5, 5, 12, 24],
                                    initializer=tf.contrib.layers.xavier_initializer())
@@ -344,7 +344,7 @@ def deep_q_train(nodes):
                     mem_next_state = np.squeeze(mem_next_state, axis=1)
                     mem_out = sess.run(nodes["out"], feed_dict={nodes["state_inp"]: mem_next_state})
 
-                    yj = np.reshape(mem_reward, (conf.batch_size, 1)) + (conf.learning_rate * mem_out)
+                    yj = mem_reward + (conf.learning_rate * mem_out)
                     # for i in range(0, len(batch)):
                     #     yj.append(mem_reward[i] + conf.learning_rate*np.max(mem_out[i]))
 
