@@ -338,10 +338,12 @@ def deep_q_train(nodes):
                     mem_action = [mem[1] for mem in batch]
                     mem_reward = [mem[2] for mem in batch]
                     mem_next_state = [mem[3] for mem in batch]
-                    # yj = []
-                    # mem_inp = np.squeeze(mem_next_state, axis=1)
+
+                    # Ensure that the inputs are 4 dimensional, since they are stored as 1xHxWxD from screen grabs
                     mem_inp = np.squeeze(mem_state, axis=1)
+                    mem_next_state = np.squeeze(mem_next_state, axis=1)
                     mem_out = sess.run(nodes["out"], feed_dict={nodes["state_inp"]: mem_next_state})
+
                     yj = mem_reward + (conf.learning_rate * mem_out)
                     # for i in range(0, len(batch)):
                     #     yj.append(mem_reward[i] + conf.learning_rate*np.max(mem_out[i]))
