@@ -339,6 +339,7 @@ def deep_q_train(nodes):
 
 
 def policy_gradient_train(nodes):
+    # TODO: implement rest of policy gradient train
     env = gym.make('Mario-Kart-Royal-Raceway-v0')
     with tf.Session() as sess:
         saver = tf.train.Saver()
